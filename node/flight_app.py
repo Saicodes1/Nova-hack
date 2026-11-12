@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Literal
 from uuid import UUID
@@ -14,6 +15,7 @@ from .protocol import NodeEvent
 app = FastAPI(title="Ask the Satellite Flight Node")
 node = LocalNode()
 logger = logging.getLogger(__name__)
+KEEP_ALIVE_S = 15
 
 
 @app.get("/health")
@@ -29,9 +31,23 @@ async def telemetry():
 @app.post("/uplink")
 async def uplink(cmd: UplinkCommand):
     async def stream():
+        # Long stages (band loading, model inference) send nothing for a while;
+        # a comment line every 15 s keeps the ground station's read timeout
+        # from closing the link mid-analysis.
+        events = node.uplink(cmd).__aiter__()
+        pending = asyncio.ensure_future(events.__anext__())
         try:
-            async for event in node.uplink(cmd):
+            while True:
+                done, _ = await asyncio.wait({pending}, timeout=KEEP_ALIVE_S)
+                if not done:
+                    yield ": keep-alive\n\n"
+                    continue
+                try:
+                    event = pending.result()
+                except StopAsyncIteration:
+                    break
                 yield f"event: {event.stage}\ndata: {event.model_dump_json()}\n\n"
+                pending = asyncio.ensure_future(events.__anext__())
         except Exception:
             logger.exception("Flight analysis failed")
             event = NodeEvent(
@@ -41,6 +57,9 @@ async def uplink(cmd: UplinkCommand):
                 detail={"message": "The flight node could not complete this analysis."},
             )
             yield f"event: error\ndata: {event.model_dump_json()}\n\n"
+        finally:
+            if not pending.done():
+                pending.cancel()
 
     return StreamingResponse(stream(), media_type="text/event-stream")
 

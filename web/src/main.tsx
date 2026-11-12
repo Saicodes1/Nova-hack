@@ -4,7 +4,7 @@ import {Activity, ArrowDownToLine, ArrowRight, CircleHelp, Clock3, Database, Lay
 import MapPanel from './MapPanel';
 import ComparisonDownload from './ComparisonDownload';
 import {useStation, type Tab} from './state';
-import {api, areaKm, center, intents, moment, number, type Demo, type Intent, type Language,
+import {api, areaKm, center, featureBounds, intentColor, intentNoun, intents, moment, number, type Demo, type Intent, type Language,
   type Mode, type Packet, type Pass, type Place, type Result, type Stage, type Telemetry, type Tracks} from './types';
 import './style.css';
 
@@ -82,7 +82,7 @@ function App() {
   },[station.tracks]);
 
   function follow(id:string) {
-    set({currentId:id,busy:true,error:'',stages:[],result:null});
+    set({currentId:id,busy:true,error:'',stages:[],result:null,selectedPatch:null,focus:null});
     stream.current?.close();
     const source = new EventSource('/api/analyses/'+id+'/events');
     stream.current=source;
@@ -163,7 +163,7 @@ function App() {
     </header>
     <main className="workspace">
       <div className="main-side">
-        <div className="map-heading"><div><h2>Observation area</h2><p>{packet?.aoi.name || station.aoi?.name || 'Select an area on the map'}</p></div>
+        <div className="map-heading"><div><h2>Observation area</h2><p>{packet?.aoi.name || station.aoi?.name || (station.aoi ? 'Drawn area · '+number(areaKm(station.aoi))+' km²' : 'Search, draw a rectangle or a polygon')}</p></div>
           <span className="source-tag"><Satellite size={16}/>{station.demoId||analysisSource?'Synthetic demonstration':'Sentinel-2 imagery'}</span>
         </div>
         <MapPanel trackData={trackData}/>
@@ -175,7 +175,31 @@ function App() {
         </nav>
         <div className="side-content">
           {station.tab==='Ask'&&<>
-            <div className="section-heading"><h2>Ask a question</h2><p>Compare two dates to see what changed.</p></div>
+            <div className="section-heading"><h2>Ask the satellite</h2><p>Pick an area and two dates, then ask what changed.</p></div>
+            {!!station.stages.length&&<Pipeline rows={station.stages} busy={station.busy}/>}
+            {station.error&&<div className="alert" role="alert">{station.error}</div>}
+            {station.result&&packet&&<>
+              <article className={'answer '+(packet.trust.level==='Low'?'low':'')} dir={station.result.plan.language==='ar'?'rtl':'ltr'}>
+                <div className="answer-label"><ShieldCheck size={16}/> Answer <Confidence level={packet.trust.level}/></div>
+                {packet.trust.level==='Low'&&station.result.explanation.caveats[0]&&<p className="warning">{station.result.explanation.caveats[0]}</p>}
+                <h3>{station.result.explanation.headline}</h3>
+                <StatChips packet={packet}/><p>{station.result.explanation.body}</p>
+                <ul>{station.result.explanation.caveats.slice(packet.trust.level==='Low'?1:0).map(c=><li key={c}>{c}</li>)}</ul>
+                <div className="answer-scenes">{packet.scenes.map(scene=><p key={scene.role}><b>{scene.role==='A'?'Before':'After'}</b> <span title={scene.datetime}>{moment(scene.datetime)}</span> · {number(scene.aoi_cloud_pct)}% cloud<br/><code>{scene.item_ids.join(', ')}</code></p>)}</div>
+                {packet.status==='refused_cloudy'&&!analysisSource&&<button onClick={()=>set({tab:'Orbit'})}>Check predicted passes <ArrowRight size={15}/></button>}
+                <ComparisonDownload key={packet.analysis_id} packet={packet}/>
+              </article>
+              <PatchList packet={packet}/>
+              {openai?.explainer&&!analysisSource&&<section className="follow-up">
+                <h3>Follow-up question</h3>
+                {chat.map((entry,i)=><p className="chat-row" key={i}><b>{entry.role}</b> {entry.text}</p>)}
+                <form onSubmit={send}><input value={message} onChange={e=>setMessage(e.target.value)} aria-label="Follow-up question" maxLength={2000} placeholder="Ask about this analysis"/>
+                  <button aria-label="Send follow-up" disabled={chatting||!message.trim()||station.busy}><Send size={17}/></button></form>
+                {chatting&&<p className="field-note" role="status">Looking up evidence…</p>}
+              </section>}
+            </>}
+            {station.result&&!station.busy ? <details className="query">
+              <summary>New question or different dates</summary>
             <div className="case-select">
               <label htmlFor="case">Data source</label>
               <select id="case" value={station.demoId||''} disabled={station.busy} onChange={e=>{
@@ -207,30 +231,44 @@ function App() {
               <button className="primary" disabled={station.busy||(!station.question.trim()&&!completeForm)}><Satellite size={17}/>
                 {station.busy?(active?stages[active.stage]:'Planning…'):station.demoId?'Run demo':'Ask the satellite'}<ArrowRight size={16}/></button>
             </form>
-            {station.error&&<div className="alert" role="alert">{station.error}</div>}
+            </details> : <div className="query-open">
+            <div className="case-select">
+              <label htmlFor="case">Data source</label>
+              <select id="case" value={station.demoId||''} disabled={station.busy} onChange={e=>{
+                const selected=demos.find(d=>d.id===e.target.value);
+                if(selected)applyDemo(selected);else set({demoId:null,error:''});
+              }}>
+                <option value="">Live Sentinel-2</option>
+                {demos.map(demo=><option key={demo.id} value={demo.id}>Demo · {demo.title}</option>)}
+              </select>
+              {demoError&&<small role="status">{demoError}</small>}
+            </div>
+            <form onSubmit={submit} className="ask-form">
+              <label>Question<textarea value={station.question} maxLength={2000} placeholder="Did surface water expand after the storm?"
+                onChange={e=>set({question:e.target.value,demoId:null})} disabled={station.busy}/></label>
+              <div className="field-grid">
+                <label>Before<input type="date" value={station.dateA} onChange={e=>set({dateA:e.target.value,demoId:null})} disabled={station.busy}/></label>
+                <label>After<input type="date" value={station.dateB} onChange={e=>set({dateB:e.target.value,demoId:null})} disabled={station.busy}/></label>
+              </div>
+              <div className="field-grid intent-grid">
+                <label>Analysis type<select value={station.intent} disabled={station.busy} onChange={e=>set({intent:e.target.value as Intent|'',demoId:null})}>
+                  <option value="">Infer from question</option>{Object.entries(intents).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+                </select></label>
+                <label>Language<select value={station.language} disabled={station.busy} onChange={e=>set({language:e.target.value as Language})}>
+                  <option value="en">English</option><option value="ar">العربية</option><option value="hi">हिन्दी</option>
+                </select></label>
+              </div>
+              {station.demoId&&<p className="field-note">This demo uses synthetic imagery.</p>}
+              {!station.demoId&&openai&&!openai.planner&&!completeForm&&<p className="field-note">Select an area, two dates, and an analysis type to run without OpenAI.</p>}
+              <button className="primary" disabled={station.busy||(!station.question.trim()&&!completeForm)}><Satellite size={17}/>
+                {station.busy?(active?stages[active.stage]:'Planning…'):station.demoId?'Run demo':'Ask the satellite'}<ArrowRight size={16}/></button>
+            </form>
+            </div>}
             {!!station.stages.length&&<details className="timeline" open={station.busy||undefined}>
-              <summary><Clock3 size={16}/><span>Analysis progress</span><small>{active ? stages[active.stage] : ''}</small></summary>
+              <summary><Clock3 size={16}/><span>Stage details</span><small>{active ? stages[active.stage] : ''}</small></summary>
               <ol>{station.stages.map(row=><li key={row.stage}><span className={'stage-dot '+row.status}/><span>{stages[row.stage]||row.stage}</span>
                 {row.replayed&&<small>Replayed</small>}<span>{row.ms!==null?number(row.ms,0)+' ms':row.status}</span></li>)}</ol>
             </details>}
-            {station.result&&packet&&<>
-              <article className={'answer '+(packet.trust.level==='Low'?'low':'')} dir={station.result.plan.language==='ar'?'rtl':'ltr'}>
-                <div className="answer-label"><ShieldCheck size={16}/> Answer <Confidence level={packet.trust.level}/></div>
-                {packet.trust.level==='Low'&&station.result.explanation.caveats[0]&&<p className="warning">{station.result.explanation.caveats[0]}</p>}
-                <h3>{station.result.explanation.headline}</h3><p>{station.result.explanation.body}</p>
-                <ul>{station.result.explanation.caveats.slice(packet.trust.level==='Low'?1:0).map(c=><li key={c}>{c}</li>)}</ul>
-                <div className="answer-scenes">{packet.scenes.map(scene=><p key={scene.role}><b>{scene.role==='A'?'Before':'After'}</b> <span title={scene.datetime}>{moment(scene.datetime)}</span> · {number(scene.aoi_cloud_pct)}% cloud<br/><code>{scene.item_ids.join(', ')}</code></p>)}</div>
-                {packet.status==='refused_cloudy'&&!analysisSource&&<button onClick={()=>set({tab:'Orbit'})}>Check predicted passes <ArrowRight size={15}/></button>}
-                <ComparisonDownload key={packet.analysis_id} packet={packet}/>
-              </article>
-              {openai?.explainer&&!analysisSource&&<section className="follow-up">
-                <h3>Follow-up question</h3>
-                {chat.map((entry,i)=><p className="chat-row" key={i}><b>{entry.role}</b> {entry.text}</p>)}
-                <form onSubmit={send}><input value={message} onChange={e=>setMessage(e.target.value)} aria-label="Follow-up question" maxLength={2000} placeholder="Ask about this analysis"/>
-                  <button aria-label="Send follow-up" disabled={chatting||!message.trim()||station.busy}><Send size={17}/></button></form>
-                {chatting&&<p className="field-note" role="status">Looking up evidence…</p>}
-              </section>}
-            </>}
           </>}
           {station.tab==='Evidence'&&<Evidence packet={packet}/>}
           {station.tab==='Orbit'&&<>
@@ -264,6 +302,7 @@ function Evidence({packet}:{packet?:Packet}) {
           <div><dt>Share of clear coverage</dt><dd>{number(packet.stats.changed_pct)}%</dd></div>
           <div><dt>Clear overlap</dt><dd>{number(packet.stats.valid_overlap_pct)}%</dd></div>
           <div><dt>Detected patches</dt><dd>{number(packet.stats.n_polygons,0)}</dd></div></dl>
+        <PatchList packet={packet}/>
         {packet.stats.from_to.length>0&&<section className="evidence-section"><h3>Previous land cover</h3>
           {packet.stats.from_to.map(row=><div className="bar-row" key={row.from_class}>
             <span>{row.from_class}</span><b>{number(row.ha,2)} ha</b>
@@ -272,7 +311,7 @@ function Evidence({packet}:{packet?:Packet}) {
         </section>}
       </>}
       <section className="evidence-section"><h3>Confidence <Confidence level={packet.trust.level}/></h3>
-        {packet.intent==='urban_growth'&&packet.stats&&<p className="field-note">Detector · {packet.trust.flags.includes('fresunet_assisted')?'FresUNet + urban rules':'Urban rules'}</p>}
+        {packet.intent==='urban_growth'&&packet.stats&&<p className="field-note">Detector · {packet.trust.flags.includes('fresunet_assisted')?'Built-up evidence + FresUNet':'Built-up evidence (colour + texture)'}</p>}
         {packet.intent==='visible_change'&&packet.stats&&<p className="field-note">Detector · FresUNet</p>}
         <div className="score"><progress value={packet.trust.score} max={100} aria-label="Confidence score"/><b>{packet.trust.score}/100</b></div>
         <ul>{packet.trust.caveats.map(caveat=><li key={caveat}>{caveat}</li>)}</ul>
@@ -310,6 +349,62 @@ function LinkPanel({packet}:{packet?:Packet}) {
       <p className="field-note">This analysis ran with {link.mode}. The selector also previews other bitrates.</p>
     </>}
   </>;
+}
+
+
+const phases=[
+  {key:'ground',label:'Ground',detail:'Plan',stages:['uplink']},
+  {key:'onboard',label:'Satellite',detail:'Onboard analysis',stages:['scene_select_a','scene_select_b','load','cloud_check','indices','change','landcover','trust','render','verdict','packet']},
+  {key:'downlink',label:'Downlink',detail:'Answer packet',stages:['downlink']},
+  {key:'answer',label:'Answer',detail:'Explain',stages:['explain','done']},
+];
+
+function Pipeline({rows,busy}:{rows:Stage[];busy:boolean}) {
+  const failed=rows.some(row=>row.stage==='error'||row.status==='failed');
+  return <ol className="pipeline" aria-label="Analysis pipeline">
+    {phases.map(phase=>{
+      const mine=rows.filter(row=>phase.stages.includes(row.stage));
+      const done=phase.key==='onboard' ? mine.some(row=>row.stage==='packet'&&row.status==='done')
+        : mine.length>0 && mine.every(row=>row.status==='done');
+      const refused=mine.some(row=>row.status==='refused');
+      const active=!done && mine.length>0 && busy;
+      const ms=mine.reduce((sum,row)=>sum+(row.status==='done'&&row.ms?row.ms:0),0);
+      const state=failed&&!done&&mine.length?'failed':refused?'refused':done?'done':active?'active':'idle';
+      return <li key={phase.key} className={'phase '+state}>
+        <span className="phase-dot"/><b>{phase.label}</b>
+        <small>{state==='done'&&ms?number(ms/1000,1)+' s':state==='active'?'working…':state==='refused'?'too cloudy':phase.detail}</small>
+      </li>;
+    })}
+  </ol>;
+}
+
+function StatChips({packet}:{packet:Packet}) {
+  const stats=packet.stats;
+  if (!stats) return null;
+  return <div className="chips">
+    <span className="chip strong" style={{borderColor:intentColor[packet.intent]}}>
+      <i style={{background:intentColor[packet.intent]}}/>{number(stats.changed_ha,1)} ha {intentNoun[packet.intent]}</span>
+    <span className="chip">{number(stats.changed_pct)}% of clear area</span>
+    <span className="chip">{number(stats.n_polygons,0)} {stats.n_polygons===1?'patch':'patches'}</span>
+  </div>;
+}
+
+function PatchList({packet}:{packet:Packet}) {
+  const {selectedPatch,set}=useStation();
+  const features=packet.change_geojson?.features ?? [];
+  if (!features.length) return null;
+  const order=features.map((feature,index)=>({index,ha:Number(feature.properties?.ha ?? 0),artefact:Boolean(feature.properties?.artefact)}))
+    .sort((a,b)=>b.ha-a.ha).slice(0,8);
+  const largest=order[0]?.ha || 1;
+  return <section className="patch-list">
+    <h3>Largest patches <small>click to zoom</small></h3>
+    <ul>{order.map((row,rank)=><li key={row.index}>
+      <button aria-pressed={selectedPatch===row.index} onClick={()=>set({selectedPatch:row.index,focus:featureBounds(features[row.index].geometry)})}>
+        <span className="rank">{rank+1}</span>
+        <span className="bar"><i style={{width:(100*row.ha/largest)+'%',background:row.artefact?'#9aa4b2':intentColor[packet.intent]}}/></span>
+        <b>{number(row.ha,2)} ha</b>{row.artefact&&<small>edge</small>}
+      </button></li>)}</ul>
+  </section>;
 }
 
 createRoot(document.getElementById('root')!).render(<App/>);

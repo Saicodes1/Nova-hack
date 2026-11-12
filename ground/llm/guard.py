@@ -15,10 +15,15 @@ def normalize(text):
     )
 
 
+# Fields whose numbers are not evidence: images, geometry, and the detector's
+# configuration (thresholds would otherwise whitelist almost any small number).
+SKIPPED = {"thumbnails", "change_geojson", "asset_hrefs", "thresholds", "image_bounds"}
+
+
 def _values(value):
     if isinstance(value, dict):
         for key, child in value.items():
-            if key not in {"thumbnails", "change_geojson", "asset_hrefs"}:
+            if key not in SKIPPED:
                 yield from _values(child)
     elif isinstance(value, (tuple, list)):
         for child in value:
@@ -27,10 +32,25 @@ def _values(value):
         yield value
 
 
+def _strings(value):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key not in SKIPPED:
+                yield from _strings(child)
+    elif isinstance(value, (tuple, list)):
+        for child in value:
+            yield from _strings(child)
+    elif isinstance(value, str):
+        yield value
+
+
 def check(text, evidence):
-    dates = set()
+    dates, calendar = set(), set()
     for scene in evidence.get("scenes", []):
-        dates.update([str(scene["datetime"])[:10], str(scene["requested_date"])])
+        for stamp in (str(scene["datetime"])[:10], str(scene["requested_date"])):
+            dates.add(stamp)
+            year, month, day = (int(part) for part in stamp.split("-"))
+            calendar.update({year, month, day})  # "8 July 2019", "in 2024"
     text = DATE.sub(
         lambda match: " " if match[0] in dates else match[0], normalize(text)
     )
@@ -38,6 +58,13 @@ def check(text, evidence):
         round(value, digits) for value in _values(evidence) for digits in (0, 1, 2, 4)
     }
     allowed.update(_values(evidence))
+    allowed.update(calendar)
+    # Numbers already written into the packet's own caveats (e.g. "0.5 ha floor").
+    for sentence in _strings(evidence):
+        allowed.update(
+            float(match.replace(",", ""))
+            for match in NUMBER.findall(normalize(sentence))
+        )
     bad = []
     for match in NUMBER.finditer(text):
         value = float(match[0].replace(",", ""))

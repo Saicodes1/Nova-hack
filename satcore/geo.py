@@ -1,11 +1,12 @@
 import math
 import os
 
+import numpy as np
+import shapely
 from pyproj import Geod, Transformer
 from rasterio.features import geometry_mask
 from rasterio.transform import from_origin
 from shapely.geometry import Polygon, box, mapping, shape
-from shapely.ops import transform
 
 from .models import AOI, Grid
 
@@ -40,6 +41,16 @@ def utm_epsg(lon: float, lat: float) -> int:
 
 def project(epsg_from: int, epsg_to: int):
     return Transformer.from_crs(epsg_from, epsg_to, always_xy=True).transform
+
+
+def transform(convert, geometry):
+    """Apply a pyproj-style (x, y) -> (x, y) function to every coordinate."""
+
+    def apply(xy: np.ndarray) -> np.ndarray:
+        x, y = convert(xy[:, 0], xy[:, 1])
+        return np.column_stack([x, y])
+
+    return shapely.transform(geometry, apply)
 
 
 def build_grid(aoi: AOI) -> Grid:

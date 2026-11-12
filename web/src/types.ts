@@ -1,4 +1,4 @@
-import type { FeatureCollection, Polygon } from 'geojson';
+import type { FeatureCollection, Geometry, Polygon } from 'geojson';
 export type Point = [number, number];
 export type AOI = { geometry: Polygon; name?: string };
 export type Intent = 'water_gain'|'water_loss'|'veg_gain'|'veg_loss'|'urban_growth'|'burn'|'visible_change';
@@ -9,6 +9,24 @@ export const intents: Record<Intent, string> = {
   veg_gain: 'Vegetation gain', veg_loss: 'Vegetation loss', urban_growth: 'Urban growth', burn: 'Burn-related change',
   visible_change: 'Visible change · FresUNet',
 };
+export const intentColor: Record<Intent, string> = {
+  water_gain:'#38bdf8', water_loss:'#fbbf24', veg_gain:'#4ade80', veg_loss:'#f87171',
+  urban_growth:'#22d3ee', burn:'#fb7185', visible_change:'#e879f9',
+};
+export const intentNoun: Record<Intent, string> = {
+  water_gain:'new water', water_loss:'lost water', veg_gain:'new vegetation', veg_loss:'lost vegetation',
+  urban_growth:'new built-up land', burn:'burned land', visible_change:'visible change',
+};
+export type Bounds = [number,number,number,number];
+export function featureBounds(geometry:Geometry):Bounds {
+  const xs:number[]=[], ys:number[]=[];
+  const walk=(value:unknown)=>{
+    if (Array.isArray(value)&&typeof value[0]==='number') {xs.push(value[0] as number);ys.push(value[1] as number);}
+    else if (Array.isArray(value)) value.forEach(walk);
+  };
+  if ('coordinates' in geometry) walk(geometry.coordinates);
+  return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+}
 export type Demo = {id:string; title:string; aoi:AOI; date_a:string; date_b:string; intent:Intent; question:string};
 export type Scene = {role:string; item_ids:string[]; datetime:string; requested_date:string; aoi_cloud_pct:number; source:string};
 export type Packet = {

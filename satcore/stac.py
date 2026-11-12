@@ -22,6 +22,24 @@ class Selection:
     assets: dict[str, list[Asset]]
 
 
+def default_offset(item, key: str) -> float:
+    """Reflectance offset to use when the catalog does not state one.
+
+    From processing baseline 04.00 (25 Jan 2022) ESA adds 1000 to every L2A
+    reflectance value. Earth Search publishes the matching -0.1 offset in
+    `raster:bands`; Planetary Computer does not, so it is applied here.
+    Without it, newer scenes read ~0.1 too bright and comparisons across
+    2022 show false change.
+    """
+    if key == "scl":
+        return 0.0
+    baseline = str(item.properties.get("s2:processing_baseline", "0"))
+    try:
+        return -0.1 if float(baseline) >= 4.0 else 0.0
+    except ValueError:
+        return 0.0
+
+
 def _assets(items, backup: bool) -> dict[str, list[Asset]]:
     result = defaultdict(list)
     for item in items:
@@ -31,11 +49,12 @@ def _assets(items, backup: bool) -> dict[str, list[Asset]]:
                 meta = asset.extra_fields
                 raster = (meta.get("raster:bands") or meta.get("bands") or [{}])[0]
                 href = planetary_computer.sign(asset.href) if backup else asset.href
+                offset = raster.get("offset")
                 result[key].append(
                     Asset(
                         href,
                         raster.get("scale", 0.0001),
-                        raster.get("offset", 0),
+                        default_offset(item, key) if offset is None else offset,
                         meta.get("file:size"),
                     )
                 )

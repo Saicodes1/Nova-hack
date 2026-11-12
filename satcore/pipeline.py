@@ -71,7 +71,12 @@ def run_analysis(
         with stage("cloud_check") as detail:
             for scene, layers in zip(scenes, (a, b), strict=True):
                 scene.aoi_cloud_pct = masks.aoi_cloud_pct(layers["scl"], inside)
-            valid = inside & masks.valid_mask(a["scl"]) & masks.valid_mask(b["scl"])
+            water_intent = cmd.intent.startswith("water")
+            valid = (
+                inside
+                & masks.valid_mask(a["scl"], exclude_dark=water_intent)
+                & masks.valid_mask(b["scl"], exclude_dark=water_intent)
+            )
             required = {
                 "water_gain": ("green", "nir", "swir16"),
                 "water_loss": ("green", "nir", "swir16"),
@@ -91,6 +96,9 @@ def run_analysis(
                         valid &= np.isfinite(layers[band])
             overlap = round(100 * valid.sum() / max(1, inside.sum()), 1)
             detail["valid_overlap_pct"] = overlap
+            buffer_px = THRESHOLDS["cleanup"].get("cloud_buffer_px", 0)
+            # Detection skips a fringe around clouds and their shadows.
+            detectable = valid & ~masks.near_clouds(a["scl"], b["scl"], buffer_px)
         labels = edge = None
         if overlap < THRESHOLDS["trust"]["overlap_low_pct"]:
             emit("cloud_check", "refused", {"valid_overlap_pct": overlap})
@@ -109,7 +117,7 @@ def run_analysis(
                     },
                 )
             with stage("change") as detail:
-                edge = masks.cloud_edge(a["scl"], b["scl"])
+                edge = masks.cloud_edge(a["scl"], b["scl"], buffer_px + 2)
                 pixel_ha = grid.resolution**2 / 10_000
                 if cmd.intent in {"urban_growth", "visible_change"} and not cmd.demo_id:
                     try:
@@ -123,16 +131,17 @@ def run_analysis(
                     detail["detector"] = (
                         urban_model.MODEL_NAME
                         if model_score is not None
-                        else "Urban rules"
+                        else "Built-up evidence"
                     )
                 labels = change.detect(
                     ia,
                     ib,
-                    valid,
+                    detectable,
                     cmd.intent,
                     pixel_ha,
                     reflectance=(a, b),
                     model_score=model_score,
+                    scl=(a["scl"], b["scl"]),
                 )
                 geojson = change.polygons(labels, edge, grid, cmd.intent)
                 mask = labels > 0

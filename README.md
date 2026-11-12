@@ -2,6 +2,23 @@
 
 Ask the Satellite compares two Sentinel-2 acquisitions over a selected area. The satellite node reads imagery, masks clouds, detects change on a 10 m grid, and downlinks a compact packet. The ground station displays scene provenance, confidence, imagery, polygons, progress and link estimates.
 
+## Run on macOS or Linux
+
+From this folder, with Python 3.11+ and Node 20+ installed:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+npm --prefix web ci
+npm --prefix web run build
+python -m uvicorn ground.main:app --host 127.0.0.1 --port 8000
+```
+
+Open http://127.0.0.1:8000. Next time, `source .venv/bin/activate` and the last command are enough (rebuild the web app after frontend changes). On macOS you can also double-click `run_local.command`, which rebuilds the web app and starts the server, writing logs to `var/logs/`.
+
+Run the checks with `python -m pytest -q` and `python -m ruff check .`.
+
 ## Run on Windows
 
 From this folder, with Python 3.11+ and Node installed:
@@ -19,6 +36,17 @@ Open [the local ground station](http://127.0.0.1:8000). If the project already h
 Choose **Run demo** to generate an offline example. The four demo cases use explicitly labeled synthetic imagery. They exercise the same indices, cloud masks, change rules, packet serialization, and display as live mode. The basemap, place search and orbit predictions need internet access.
 
 For real imagery select **Live Sentinel-2**. Draw a polygon or rectangle, or choose a place to create a 5 km box. Pick before and after dates, choose an analysis type, and submit. The maximum area is 50 km². Acquisition dates can differ from requested dates when the catalog supplies better coverage nearby.
+
+## How change detection works
+
+Every analysis type uses the same two-step approach (`satcore/change.py`, thresholds in `config/thresholds.yaml`):
+
+1. **Seeds**: pixels that pass a strict rule, for example new water where at least two of MNDWI, NDWI and the scene classification agree and the water index rose by at least 0.15.
+2. **Growth**: each patch extends over connected pixels that pass a looser rule, so a flood, a clearing or a new district is outlined in full rather than only its strongest pixels. Weak signals that touch no seed are ignored.
+
+**Urban growth** compares a change signal (surface colour shifting from sand or soil to grey, plus new fine texture) with how built-up the after image looks (texture and grey or blue tone). Both are scored against the scene's own background, so a darker or hazier second date does not show up as change. NDBI is not used for urban growth because over desert it rises on bare sand as much as on new buildings.
+
+Pixels within 30 m of clouds or cloud shadows are skipped. For water, the dark and shadow class is excluded, because building shadows look like water. Patches get a one-pixel gap closing, a speckle removal, small-hole filling and a 0.5 ha minimum. Outlines are simplified to 5 m, half a pixel.
 
 ## OpenAI
 

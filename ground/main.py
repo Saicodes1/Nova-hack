@@ -38,13 +38,19 @@ node = RemoteNode(node_url) if node_mode == "remote" else LocalNode()
 jobs: dict[UUID, EventLog] = {}
 job_modes: dict[UUID, str] = {}
 tasks: set[asyncio.Task] = set()
+SHUTDOWN_GRACE_S = 5
 
 
 @asynccontextmanager
 async def lifespan(_app):
     yield
+    # Give running analyses a moment to finish, then cancel them so Ctrl+C
+    # never hangs on a slow imagery download.
     if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
+        _done, running = await asyncio.wait(tasks, timeout=SHUTDOWN_GRACE_S)
+        for task in running:
+            task.cancel()
+        await asyncio.gather(*running, return_exceptions=True)
 
 
 app = FastAPI(title="Ask the Satellite", lifespan=lifespan)
@@ -86,22 +92,9 @@ async def run(cmd, plan, request, mode, active_node, artifact_mode):
             model_identity() if model_analysis and artifact_mode == "local" else None
         )
         key = cache.cache_key(cmd, detector)
-        hit = (
-            None
-            if model_analysis and artifact_mode == "remote"
-            else await asyncio.to_thread(cache.cached, key)
+        hit = await asyncio.to_thread(
+            cached_result, key, model_analysis, artifact_mode, detector
         )
-        if (
-            hit
-            and detector
-            and "construction_candidates"
-            in json.loads(hit["packet_json"])["trust"]["flags"]
-        ):
-            if (
-                "fresunet_assisted"
-                not in json.loads(hit["packet_json"])["trust"]["flags"]
-            ):
-                hit = None
         artifact_id = identifier
         if hit:
             artifact_id = hit["artifact_id"]
@@ -172,6 +165,25 @@ async def run(cmd, plan, request, mode, active_node, artifact_mode):
                     jobs.pop(old_id, None)
                     break
         job_modes.pop(identifier, None)
+
+
+def cached_result(key, model_analysis, artifact_mode, detector):
+    """Return a reusable cached analysis, or None to run a fresh one.
+
+    Two cases are never reused:
+    * model-assisted analyses on a remote node: the ground cannot tell which
+      model version the node has, so the cached result may be stale;
+    * urban results computed *without* FresUNet when the model is now
+      installed locally: rerun so the model can contribute.
+    """
+    if model_analysis and artifact_mode == "remote":
+        return None
+    hit = cache.cached(key)
+    if hit and detector:
+        flags = json.loads(hit["packet_json"])["trust"]["flags"]
+        if "construction_candidates" in flags and "fresunet_assisted" not in flags:
+            return None
+    return hit
 
 
 def start(aoi, plan, request):

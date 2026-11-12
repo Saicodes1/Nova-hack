@@ -15,7 +15,10 @@ class RemoteNode:
 
     async def uplink(self, cmd: UplinkCommand):
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
+            # The flight node sends a keep-alive line every 15 s, so 90 s of
+            # silence means the link really dropped.
+            timeout = httpx.Timeout(90, connect=10)
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
                     "POST", f"{self.url}/uplink", json=cmd.model_dump(mode="json")
                 ) as response:

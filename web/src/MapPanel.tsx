@@ -3,7 +3,7 @@ import maplibregl, {LngLatBounds, Map as MapLibre, NavigationControl, Popup} fro
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {Crosshair, Layers2, MapPin, Pentagon, Search, Square, X} from 'lucide-react';
 import type {Feature, FeatureCollection, Geometry} from 'geojson';
-import {api, areaKm, number, type AOI, type Place, type Point, type Tracks} from './types';
+import {api, areaKm, intentColor, intents, number, type AOI, type Place, type Point, type Tracks} from './types';
 import {useStation} from './state';
 
 const empty:FeatureCollection = {type:'FeatureCollection',features:[]};
@@ -11,17 +11,31 @@ const feature = (geometry:Geometry):Feature => ({type:'Feature',geometry,propert
 const formatDate = (value?:string) => value ? new Date(value.slice(0,10)+'T12:00:00').toLocaleDateString(undefined,
   {month:'short',day:'numeric',year:'numeric'}) : '';
 const styleUrl = 'https://tiles.openfreemap.org/styles/dark';
-const patchColor:maplibregl.ExpressionSpecification = ['case',['==',['get','artefact'],true],'#ffcb80','#59eff1'];
+const fallbackColor='#22d3ee';
+const artefactColor='#9aa4b2';
 
 function patchLayers(map:MapLibre, after:boolean) {
   if (map.getSource('detected')) return;
   map.addSource('detected',{type:'geojson',data:empty});
+  map.addSource('selected',{type:'geojson',data:empty});
+  const color:maplibregl.ExpressionSpecification=['case',['==',['get','artefact'],true],artefactColor,fallbackColor];
   map.addLayer({id:'detected-hit',source:'detected',type:'fill',
-    paint:{'fill-color':patchColor,'fill-opacity':after ? .33 : 0}});
+    paint:{'fill-color':color,'fill-opacity':after ? .4 : 0}});
   map.addLayer({id:'detected-casing',source:'detected',type:'line',
-    paint:{'line-color':'#07121a','line-width':4.5}});
+    paint:{'line-color':'#05090f','line-width':after ? 3.5 : 3,'line-opacity':.85}});
   map.addLayer({id:'detected-outline',source:'detected',type:'line',
-    paint:{'line-color':patchColor,'line-width':2}});
+    paint:{'line-color':color,'line-width':after ? 1.8 : 1.5,
+      ...(after ? {} : {'line-dasharray':[2,1.5]})}});
+  map.addLayer({id:'selected-line',source:'selected',type:'line',
+    paint:{'line-color':'#ffffff','line-width':3}});
+}
+
+function stylePatches(map:MapLibre, after:boolean, color:string, opacity:number) {
+  if (!map.getLayer('detected-hit')) return;
+  const paint:maplibregl.ExpressionSpecification=['case',['==',['get','artefact'],true],artefactColor,color];
+  map.setPaintProperty('detected-hit','fill-color',paint);
+  map.setPaintProperty('detected-hit','fill-opacity',after ? opacity : 0);
+  map.setPaintProperty('detected-outline','line-color',paint);
 }
 
 type Draw = 'box'|'polygon'|null;
@@ -116,6 +130,9 @@ export default function MapPanel({trackData}:{trackData:Tracks|null}) {
         const side=event.point.x / a.getContainer().clientWidth * 100 < station.swipe ? 'Before' : 'After';
         new Popup().setLngLat(event.lngLat).setText(
           side+' view · '+number(info.ha,2)+' ha patch'+(info.artefact?' · possible cloud-edge artefact':'')).addTo(a);
+        const features=latest.current.station.result?.packet.change_geojson?.features ?? [];
+        const index=features.findIndex(f=>JSON.stringify(f.geometry)===JSON.stringify(item.geometry));
+        if (index>=0) latest.current.station.set({selectedPatch:index});
       }
     });
     maps.current={base:a,after:b};
@@ -167,6 +184,35 @@ export default function MapPanel({trackData}:{trackData:Tracks|null}) {
       map.getSource<maplibregl.GeoJSONSource>('detected')?.setData(comparison && station.changes && polygonData ? polygonData : empty);
     }
   },[ready,bounds,comparison,preview,station.changes,polygonData,packet]);
+
+  const color=packet ? intentColor[packet.intent] : fallbackColor;
+  useEffect(()=>{
+    if (!ready || !maps.current) return;
+    stylePatches(maps.current.base,false,color,station.patchOpacity);
+    stylePatches(maps.current.after,true,color,station.patchOpacity);
+  },[ready,color,station.patchOpacity,polygonData]);
+
+  useEffect(()=>{
+    if (!ready || !maps.current) return;
+    const chosen=station.selectedPatch!==null ? polygonData?.features[station.selectedPatch] : undefined;
+    for (const map of [maps.current.base,maps.current.after])
+      map.getSource<maplibregl.GeoJSONSource>('selected')?.setData(chosen ? {type:'FeatureCollection',features:[chosen]} : empty);
+  },[ready,station.selectedPatch,polygonData]);
+
+  useEffect(()=>{
+    const base=maps.current?.base;
+    if (!ready || !base || !station.focus) return;
+    const [w,s,e,n]=station.focus;
+    base.fitBounds([[w,s],[e,n]],{padding:120,maxZoom:15,duration:600});
+  },[ready,station.focus]);
+
+  useEffect(()=>{
+    const base=maps.current?.base;
+    if (!ready || !base || bounds?.length!==4 || !packet) return;
+    const box=new LngLatBounds();
+    bounds.forEach(point=>box.extend(point as Point));
+    base.fitBounds(box,{padding:40,maxZoom:16,duration:0});
+  },[ready,packet?.analysis_id]);
 
   useEffect(()=>{
     if (!ready) return;
@@ -244,10 +290,13 @@ export default function MapPanel({trackData}:{trackData:Tracks|null}) {
     </div>
     {comparison&&station.changes&&packet&&<div className="patch-legend" aria-label="Change overlay legend">
       {patchCount ? <>
-        <strong>{number(patchCount,0)} detected {patchCount===1?'patch':'patches'}</strong>
-        {!canvasError&&<span><i className="patch-key"/> Before · same footprint</span>}
-        <span><i className="patch-key filled"/> After · detected change</span>
+        <strong>{number(patchCount,0)} {patchCount===1?'patch':'patches'} · {intents[packet.intent]}</strong>
+        <span><i className="patch-key filled" style={{borderColor:color,background:color+'66'}}/> After · detected area</span>
+        {!canvasError&&<span><i className="patch-key dashed" style={{borderColor:color}}/> Before · same outline</span>}
         {hasArtefacts&&<span><i className="patch-key uncertain"/> Possible cloud-edge artefact</span>}
+        <label className="opacity-control">Fill
+          <input type="range" min="0" max="0.8" step="0.05" value={station.patchOpacity}
+            onChange={e=>station.set({patchOpacity:+e.target.value})} aria-label="Patch fill opacity"/></label>
       </> : <span>{packet.status==='no_change'?'No patches above the detection threshold.':'No change overlay available.'}</span>}
     </div>}
     <div className="map-status">

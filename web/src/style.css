@@ -139,3 +139,60 @@ th,td small{color:var(--muted)}td small{display:block}
 footer{display:flex;gap:7px 19px;flex-wrap:wrap;padding:13px 24px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
 @media(max-width:900px){.workspace{grid-template-columns:minmax(0,1fr) minmax(320px,36%)}.main-side{padding:18px 14px}.side-content{padding:18px 15px}.map-actions{flex-wrap:wrap}.date-tag{top:auto;bottom:63px}.draw-message{top:103px}.source-tag{max-width:130px}}
 @media(max-width:680px){.workspace{display:block}.topbar{height:67px;padding:0 13px}.telemetry{gap:0}.telemetry span:not(.node-state){display:none}.main-side{padding:15px 12px}.map-view{height:clamp(340px,56dvh,580px)}.side{border-left:0;border-top:1px solid var(--line)}.map-search{width:min(100%,250px)}.map-heading h2{font-size:18px}.source-tag{font-size:11px}.map-actions{left:9px;right:9px;gap:5px}.draw-tools button{width:30px}.draw-tools{gap:3px}footer{padding:12px}}
+
+/* --- Pipeline: ground -> satellite -> downlink -> answer --- */
+.pipeline{list-style:none;margin:0 0 16px;padding:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;border:1px solid var(--line);border-radius:9px;background:var(--inset);position:relative}
+.phase{display:grid;justify-items:center;text-align:center;gap:3px;position:relative;font-size:12px}
+.phase:not(:last-child)::after{content:"";position:absolute;top:6px;left:calc(50% + 10px);right:calc(-50% + 10px);height:2px;background:var(--line)}
+.phase.done:not(:last-child)::after{background:linear-gradient(90deg,var(--green),#3f6f50)}
+.phase-dot{width:14px;height:14px;border-radius:50%;border:2px solid #4b5a6c;background:var(--surface);z-index:1}
+.phase b{font-size:12px;color:var(--text)}
+.phase small{font-size:11px;color:var(--muted)}
+.phase.done .phase-dot{background:var(--green);border-color:var(--green)}
+.phase.active .phase-dot{border-color:var(--blue);background:#163a5c;animation:pulse 1.2s ease-in-out infinite}
+.phase.refused .phase-dot,.phase.failed .phase-dot{background:var(--warm);border-color:var(--warm)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #79c0ff55}50%{box-shadow:0 0 0 6px #79c0ff00}}
+
+/* --- Answer --- */
+.side-content>.answer{margin-top:0;border-color:#2f4a63;background:linear-gradient(180deg,#121c28,#10151d)}
+.answer h3{font-size:18px;line-height:1.3;letter-spacing:-.01em}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 12px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted)}
+.chip.strong{color:var(--text);font-weight:600}
+.chip i{width:8px;height:8px;border-radius:50%}
+
+/* --- Patch list --- */
+.patch-list{margin-top:14px}
+.patch-list h3{font-size:13px;display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.patch-list h3 small{font-weight:400}
+.patch-list ul{list-style:none;padding:0;margin:0;display:grid;gap:4px}
+.patch-list button{width:100%;display:grid;grid-template-columns:22px 1fr auto auto;gap:9px;align-items:center;padding:6px 9px;background:var(--inset);font-size:12px}
+.patch-list button[aria-pressed=true]{border-color:#e6edf3}
+.patch-list .rank{color:var(--muted);font-variant-numeric:tabular-nums}
+.patch-list .bar{height:6px;border-radius:3px;background:#1f2a37;overflow:hidden}
+.patch-list .bar i{display:block;height:100%;border-radius:3px}
+.patch-list b{font-weight:600;font-variant-numeric:tabular-nums}
+.patch-list small{color:var(--warm)}
+
+/* --- Query form collapses once an answer is shown --- */
+.query{margin-top:18px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--inset)}
+.query[open]{padding-bottom:14px}
+.query summary{font-weight:600}
+.query[open] summary{margin-bottom:12px}
+.query-open{display:block}
+
+/* --- Map overlay details --- */
+.patch-key.dashed{border-style:dashed;background:none}
+.opacity-control{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-weight:500;color:var(--muted);font-size:12px}
+.opacity-control input{width:90px;accent-color:var(--primary)}
+.swipe-line{top:0;bottom:0;box-shadow:0 0 0 1px #0008}
+.swipe-input{top:calc(50% - 17px);height:34px}
+.date-tag{backdrop-filter:blur(6px);background:#10151dcc}
+.maplibregl-popup-content{border-radius:8px;font-size:12px}
+
+/* Keep the map in view while the side panel scrolls on its own. */
+@media(min-width:681px){
+  .workspace{align-items:start}
+  .main-side{position:sticky;top:0}
+  .side{position:sticky;top:0;max-height:100dvh;overflow-y:auto;scrollbar-width:thin}
+}
