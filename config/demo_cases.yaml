@@ -1,0 +1,37 @@
+cases:
+  - id: dubai_flood
+    title: Dubai storm
+    name: Dubai South
+    lon: 55.22
+    lat: 24.93
+    intent: water_gain
+    date_a: '2024-04-08'
+    date_b: '2024-04-21'
+    question: Did surface water expand after the April storm?
+  - id: dubai_cloudy
+    title: Cloud-obscured scene
+    name: Dubai South
+    lon: 55.22
+    lat: 24.93
+    intent: water_gain
+    date_a: '2024-04-08'
+    date_b: '2024-04-17'
+    question: Is there enough clear coverage to compare these dates?
+  - id: rondonia
+    title: Rondônia vegetation loss
+    name: Rondônia
+    lon: -63.95
+    lat: -9.28
+    intent: veg_loss
+    date_a: '2019-08-01'
+    date_b: '2024-08-01'
+    question: Where did vegetation decline?
+  - id: dubai_south
+    title: Dubai South growth
+    name: Dubai South
+    lon: 55.17
+    lat: 24.96
+    intent: urban_growth
+    date_a: '2017-03-01'
+    date_b: '2025-03-01'
+    question: Where did built-up cover expand?

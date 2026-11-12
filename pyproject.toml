@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ask-the-satellite"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi", "uvicorn", "httpx", "openai", "python-dotenv", "pystac-client",
+  "planetary-computer", "rasterio", "numpy", "scipy", "shapely>=2",
+  "pyproj", "pillow", "pyyaml", "skyfield", "psutil"
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+urban-model = ["onnxruntime>=1.20"]
+
+[tool.setuptools.packages.find]
+include = ["satcore*", "node*", "ground*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "-m 'not live'"
+markers = ["live: requires public data services"]
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = [".venv-uv-cache"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

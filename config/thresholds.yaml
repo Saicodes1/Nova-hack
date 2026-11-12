@@ -1,0 +1,22 @@
+version: 3
+water: {mndwi: 0.0, ndwi_fallback: 0.0}
+veg_loss: {ndvi_before_min: 0.4, delta_max: -0.2}
+veg_gain: {ndvi_after_min: 0.4, delta_min: 0.2}
+urban_growth:
+  ndbi_delta_min: 0.1
+  ndvi_after_max: 0.2
+  model:
+    texture_support_min: 0.4
+    strong_change_min: 0.98
+  construction:
+    window_px: 7
+    clear_fraction_min: 0.9
+    texture_delta_min: 0.023
+    texture_ratio_min: 1.7
+    chroma_drop_min: 0.06
+    mndwi_after_max: 0.0
+burn: {dnbr_min: 0.27}
+visible_change: {model_score_min: 0.5}
+cleanup: {opening_px: 3, min_patch_ha: 0.5, simplify_m: 10}
+trust: {overlap_warn_pct: 70, overlap_low_pct: 40, date_drift_warn_days: 15, date_drift_bad_days: 30, season_gap_days: 45, cloud_edge_warn_frac: 0.2, haze_shift: 0.1, min_change_ha: 0.5}
+levels: {high: 75, medium: 50}
