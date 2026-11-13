@@ -183,7 +183,6 @@ footer{display:flex;gap:7px 19px;flex-wrap:wrap;padding:13px 24px;border-top:1px
 
 /* --- Map overlay details --- */
 .patch-key.dashed{border-style:dashed;background:none}
-.patch-key.dotted{border-style:dotted}
 .opacity-control{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-weight:500;color:var(--muted);font-size:12px}
 .opacity-control input{width:90px;accent-color:var(--primary)}
 .swipe-line{top:0;bottom:0;box-shadow:0 0 0 1px #0008}
