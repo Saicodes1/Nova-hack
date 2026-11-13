@@ -1,5 +1,5 @@
-version: 5
-water: {mndwi: 0.0, ndwi: 0.0, ndwi_fallback: 0.0, min_delta: 0.15, grow_index: -0.05, grow_delta: 0.08}
+version: 6
+water: {mndwi: 0.0, ndwi: 0.0, ndwi_fallback: 0.0, min_delta: 0.15, grow_index: -0.05, grow_delta: 0.08, opening_px: 2}
 veg_loss: {ndvi_before_min: 0.4, delta_max: -0.2, grow_ndvi_before_min: 0.3, grow_delta_max: -0.12}
 veg_gain: {ndvi_after_min: 0.4, delta_min: 0.2, grow_ndvi_after_min: 0.3, grow_delta_min: 0.12}
 urban_growth:

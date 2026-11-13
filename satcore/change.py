@@ -88,19 +88,21 @@ class Candidates(NamedTuple):
 
     seed/grow: strict and loose rule masks (inside `valid`); signal: the change
     strength the rules threshold (positive in the direction of the change asked
-    for); max_hole_ha: hole-fill limit for this type, or None for the default.
+    for); max_hole_ha: hole-fill limit for this type, or None for the default;
+    opening_px: speckle-filter size for this type, or None for the default.
     """
 
     seed: np.ndarray
     grow: np.ndarray
     signal: np.ndarray
     max_hole_ha: float | None = None
+    opening_px: int | None = None
 
 
 def patches(found: Candidates, valid: np.ndarray, pixel_ha: float) -> np.ndarray:
     """Grow the seeds over connected grow pixels, then clean into labelled patches."""
     change = grow_from_seeds(found.seed, found.grow)
-    return clean(change, valid, pixel_ha, found.max_hole_ha)
+    return clean(change, valid, pixel_ha, found.max_hole_ha, found.opening_px)
 
 
 def candidates(
@@ -137,8 +139,15 @@ def candidates(
             max_hole_ha = T[intent]["evidence"]["max_hole_ha"]
     else:
         seed, grow, signal = burn_change(a, b)
+    # Water margins (receding shorelines, flood edges) are often only 1-2 px
+    # wide; a smaller speckle filter keeps them.
+    opening_px = T["water"].get("opening_px") if intent.startswith("water") else None
     return Candidates(
-        seed & valid, grow & valid, finite(signal).astype(np.float32), max_hole_ha
+        seed & valid,
+        grow & valid,
+        finite(signal).astype(np.float32),
+        max_hole_ha,
+        opening_px,
     )
 
 
@@ -331,6 +340,7 @@ def clean(
     valid: np.ndarray,
     pixel_ha: float,
     max_hole_ha: float | None = None,
+    opening_px: int | None = None,
 ) -> np.ndarray:
     """Turn a raw change mask into labelled patches that follow the change.
 
@@ -344,7 +354,7 @@ def clean(
     cross = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], bool)
     if settings.get("closing_px", 1) > 0:
         change = (change | binary_closing(change, cross)) & valid
-    size = settings["opening_px"]
+    size = opening_px or settings["opening_px"]
     change = binary_opening(change, structure=np.ones((size, size), bool))
     min_px = settings["min_patch_ha"] / pixel_ha
     hole_px = (max_hole_ha or settings["min_patch_ha"]) / pixel_ha

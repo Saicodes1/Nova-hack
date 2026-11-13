@@ -203,3 +203,23 @@ def test_patches_report_seed_share_mean_score_and_weak():
     assert strong["seed_share"] == 0.8 and not strong["weak"]
     assert weak["seed_share"] < 0.2 and weak["weak"]
     assert strong["mean_score"] > weak["mean_score"] > 0
+
+
+def test_thin_water_margins_survive_the_speckle_filter():
+    """A receding shoreline is often a 1-2 px strip along the lake (Lake Mead, Phase 2).
+
+    Water uses a 2x2 opening so a 2 px strip attached to the lake is kept;
+    other analysis types keep the 3x3 opening, which removes it.
+    """
+    from satcore.change import Candidates, patches
+
+    valid = np.ones((60, 60), bool)
+    seed = np.zeros_like(valid)
+    seed[10:40, 10:40] = True  # main retreat area
+    seed[40:42, 10:55] = True  # 2 px wide shoreline strip running off it
+    found = Candidates(seed, seed, seed.astype(np.float32))
+    water = patches(found._replace(opening_px=2), valid, pixel_ha=0.01)
+    other = patches(found, valid, pixel_ha=0.01)
+    strip = (slice(40, 42), slice(42, 55))
+    assert (water[strip] > 0).all()
+    assert not (other[strip] > 0).any()
