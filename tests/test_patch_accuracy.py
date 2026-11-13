@@ -223,3 +223,22 @@ def test_thin_water_margins_survive_the_speckle_filter():
     strip = (slice(40, 42), slice(42, 55))
     assert (water[strip] > 0).all()
     assert not (other[strip] > 0).any()
+
+
+def test_water_is_never_burn_scar():
+    """Sea and lakes can drop in NBR between dates (waves, glint, turbidity).
+
+    Palisades (Phase 2): 17 ha of "burn" sat on the ocean edge. Pixels that look
+    wet (MNDWI > 0) in either scene are excluded from burn seeds and growth.
+    """
+    from satcore.change import burn_change
+
+    shape = (20, 20)
+    dnbr_burn = {"nbr": np.full(shape, 0.5), "ndvi": np.full(shape, 0.6)}
+    after = {"nbr": np.full(shape, 0.0), "ndvi": np.full(shape, 0.1)}
+    land = np.full(shape, -0.3)
+    sea = land.copy()
+    sea[:, 10:] = 0.4  # right half is water in date B
+    seed, grow, _ = burn_change(dict(dnbr_burn, mndwi=land), dict(after, mndwi=sea))
+    assert seed[:, :10].all() and grow[:, :10].all()
+    assert not seed[:, 10:].any() and not grow[:, 10:].any()

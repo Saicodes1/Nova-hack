@@ -212,6 +212,13 @@ def burn_change(a, b):
     # seeds stops moisture or shadow changes from looking like burn scars.
     seed = (dnbr > settings["dnbr_min"]) & (ndvi_drop > settings["ndvi_drop_min"])
     grow = dnbr > settings["grow_dnbr_min"]
+    if "water_mndwi_max" in settings:
+        # Water is never burn scar: sea, lakes and pools can change in NBR between
+        # dates (waves, glint, turbidity), so drop pixels that look wet in either scene.
+        wet = settings["water_mndwi_max"]
+        dry = (finite(a["mndwi"], -1) <= wet) & (finite(b["mndwi"], -1) <= wet)
+        seed &= dry
+        grow &= dry
     return seed, grow, dnbr
 
 
