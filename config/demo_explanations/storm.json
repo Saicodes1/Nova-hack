@@ -1,79 +1,62 @@
 {
  "demo_id": "storm",
- "thresholds_version": 8,
- "cache_key": "1124c758f361aa63e920ecf64307692ead41779e4855d31d9842171f20b946ea",
- "generated": "2026-11-13T05:50:06+00:00",
+ "thresholds_version": 9,
+ "cache_key": "f3976860832c6cd231e0446941738f4d67c288a610fe83667cb8754d8f8e6bb6",
+ "generated": "2026-11-13T05:57:01+00:00",
  "explanations": {
   "en": {
-   "headline": "Sentinel-2 Satellite Detects Approximate 198 Hectares of New Surface Water at Al Maktoum, Dubai",
-   "body": "Satellite imagery from Sentinel-2 captured on 2024-03-28 and 2024-04-22 indicates a likely increase in surface water area within Al Maktoum, Dubai. Analysis shows an approximate gain of 197.92 hectares representing about 8.7% of the observation area totaling 2303.8 hectares. Of the water gain, around 173.68 hectares transitioned from bare or sparse vegetation, 24.04 hectares from built-up areas, and 0.14 hectares from permanent water surfaces. Observation overlap coverage is high at 98.4%, with a minor cloud cover of 1.6% in the later scene. The data uses a 10-meter spatial resolution, implying smaller water features could be undetected. These patterns suggest newly formed or expanded water bodies within the specified AOI during the roughly one-month interval.",
+   "headline": "Standing water likely appeared after the April 2024 storm in Al Maktoum, Dubai.",
+   "body": "Satellite data comparing images from 2024-03-28 and 2024-04-22 indicates that approximately 197.92 hectares, which is 8.7% of the clear area, showed new surface water. This suggests that standing water likely appeared following the storm in April 2024 within the observed area.",
    "caveats": [
-    "Sentinel-2 spatial resolution limits detection of features smaller than 10 meters; some small water bodies may be missed.",
-    "Cloud cover of 1.6% on 2024-04-22 imagery may slightly affect water detection accuracy.",
-    "Change detection relies on spectral indices thresholds and classifications which have inherent uncertainties.",
-    "Overlap percentage and analysis grid imply some data blending; isolated anomalies might not be fully resolved."
+    "Some water detected on built-up land may be bright rooftops rather than flooding.",
+    "Sentinel-2 uses a 10 meter analysis grid. Small water features may be missed.",
+    "The clear area covered 98.4% of the analysis region, providing extensive but not complete coverage."
    ],
    "numbers_used": [
-    2303.8,
     197.92,
     8.7,
-    173.68,
-    24.04,
-    0.14,
     98.4,
-    1.6,
-    10.0,
-    2024.03,
-    28.0,
-    2024.04,
-    22.0
-   ]
-  },
-  "ar": {
-   "headline": "زيادة محتملة في المياه السطحية في منطقة المكتوم بدبي خلال أبريل 2024",
-   "body": "تشير البيانات الفضائية التي تم جمعها في 2024-03-28 و2024-04-22 إلى زيادة في المساحات التي يمكن تصنيفها كمياه سطحية بمساحة تُقدّر بنحو 197.92 هكتار، ما يمثل حوالي 8.7% من مساحة التغطية الصافية للمنطقة التي تبلغ 2303.8 هكتار. تم تحديد 40 مضلعا بمساحات مختلفة، حيث يبرز أكبرها بمساحة 77.83 هكتار. يصاحب هذا التغير تقلص في المناطق المكشوفة أو ذات الغطاء النباتي الخفيف بمساحة 173.68 هكتار، وانخفاض في المناطق المبنية بمساحة 24.04 هكتار. قد يدل هذا النمط على أن المناطق التي كانت قاحلة أو مبنية تعرضت لتحول إلى مناطق ذات تغطية مائية أو زيادة في رطوبتها السطحية، لكن يجب ملاحظة أن التحليل يتم باستخدام شبكة تحليل بنسبة 10 أمتار.",
-   "caveats": [
-    "البيانات مأخوذة من شبكة تحليل Sentinel-2 بدقة 10 أمتار، ما قد يؤدي إلى عدم الكشف عن الخصائص الصغيرة.",
-    "مساحة التغير (197.92 هكتار) تعبر فقط عن مناطق ذات تغير معنوي في القيم الطيفية وليس تأكيدًا مضمونا بوجود مياه.",
-    "يوجد بعض الغيوم بنسبة 1.6% في البيانات المأخوذة بتاريخ 2024-04-22 قد تؤثر على بعض مناطق التحليل.",
-    "التصنيف يستند إلى مؤشرات طيفية قد تتأثر بعوامل عدة مثل الغبار أو الظلال أو البنية التحتية المائية الصناعية المحتملة."
-   ],
-   "numbers_used": [
-    197.92,
-    8.7,
     2303.8,
-    40.0,
-    77.83,
-    173.68,
-    24.04,
-    10.0,
-    2024.03,
-    2024.04,
-    1.6
-   ]
-  },
-  "hi": {
-   "headline": "अल मक्तूम, दुबई में सतह जल में लगभग 198 हेक्टेयर की वृद्धि",
-   "body": "सैटेलाइट सेंटिनल-2 के आंकड़ों के अनुसार, 2024-03-28 से 2024-04-22 तक अल मक्तूम क्षेत्र में सतह जल में 197.92 हेक्टेयर की वृद्धि देखी गई है, जो क्षेत्र के 8.7% के बराबर है। कुल क्षेत्रफल लगभग 2303.8 हेक्टेयर है, जिसमें 40 अलग-अलग क्षेत्रों में यह परिवर्तन हुआ है, सबसे बड़ा परिवर्तन 77.83 हेक्टेयर के क्षेत्र में हुआ। बदलते जल क्षेत्र में मुख्य रूप से 'बेर या स्पार्स वेजिटेशन' से परिवर्तन हुआ है। क्षेत्र में बादल का प्रतिशत न्यूनतम रहा (0% से 1.6%) जिससे आंकड़ों की गुणवत्ता अच्छी मानी जा सकती है।",
-   "caveats": [
-    "सेंटिनल-2 की 10 मीटर की विश्लेषण ग्रिड के कारण छोटे जल स्रोत छूट सकते हैं।",
-    "क्लाउड को प्रतिशत 0% से 1.6% के बीच है, जो आंकड़ों को प्रभावित कर सकता है।",
-    "डेटा विश्लेषण मॉडल और थ्रेशहोल्ड सेटिंग्स के आधार पर अनुमानों में अनिश्चितता हो सकती है।"
-   ],
-   "numbers_used": [
-    197.92,
-    8.7,
-    2303.8,
-    40.0,
-    77.83,
-    0.0,
-    1.6,
     2024.0,
     3.0,
     28.0,
     2024.0,
     4.0,
     22.0
+   ]
+  },
+  "ar": {
+   "headline": "ظهور مياه راكدة بعد عاصفة أبريل 2024 في منطقة المكتوم، دبي.",
+   "body": "تشير بيانات الأقمار الصناعية إلى ظهور مياه جديدة على سطح الأرض في مساحة تبلغ حوالي 197.92 هكتارًا، أي ما يعادل 8.7% من المنطقة التي كانت واضحة في الصور بين 2024-03-28 و2024-04-22 في منطقة المكتوم، دبي.",
+   "caveats": [
+    "بعض المياه التي تم اكتشافها على الأراضي المبنية قد تمثل أسطحًا ساطعة بدلًا من فيضانات.",
+    "نظام التحليل يستخدم شبكة تحليل بمقياس 10 أمتار، وقد يغيب عن الكشف عن الميزات الصغيرة.",
+    "في الصور، كانت النسبة المئوية للمنطقة التي كانت واضحة لكل من تاريخي الصورة 98.4%."
+   ],
+   "numbers_used": [
+    197.92,
+    8.7,
+    2024.03,
+    28.0,
+    2024.04,
+    22.0,
+    98.4
+   ]
+  },
+  "hi": {
+   "headline": "अप्रैल 2024 के तूफान के बाद अल मकतूम, दुबई में खड़े पानी का पता चला है।",
+   "body": "संख्याानुसार, 2024-04-22 और 2024-03-28 के बीच अल मकतूम क्षेत्र के लगभग 197.92 हेक्टेयर, जो कि संक्रमण क्षेत्र के लगभग 8.7% है, में खड़े पानी की नई उपस्थिति देखी गई है। यह आंकड़े 98.4% स्पष्ट क्षेत्र के आधार पर हैं और क्षेत्र में नमी के बढ़ने का संकेत दे सकते हैं।",
+   "caveats": [
+    "कुछ पानी की पहचान निर्मित क्षेत्रों पर हुई है, जो विरल छतों की चमक के कारण भी हो सकता है।",
+    "सेंटिनल-2 की 10 मीटर विश्लेषण ग्रिड के कारण छोटे जल स्रोत या सतह विशेषताएं छूट सकती हैं।",
+    "निरीक्षण क्षेत्र का 98.4% हिस्सा साफ देखा गया, जिससे डेटा का विश्लेषण संभव हुआ।"
+   ],
+   "numbers_used": [
+    197.92,
+    8.7,
+    98.4,
+    2024.04,
+    2024.03
    ]
   }
  }

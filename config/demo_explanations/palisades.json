@@ -1,62 +1,48 @@
 {
  "demo_id": "palisades",
- "thresholds_version": 8,
- "cache_key": "23750b46fb468e12f0b1217349fdc0c1705f71a9ac92967c3a747ab53b5e45b7",
- "generated": "2026-11-13T05:49:08+00:00",
+ "thresholds_version": 9,
+ "cache_key": "97d1ed2ad45a4e93581bbca74b712b1d997072510615e5f32b1c8aca28896726",
+ "generated": "2026-11-13T07:25:00+00:00",
  "explanations": {
   "en": {
-   "headline": "Likely Burn-Related Land Cover Change in Pacific Palisades, Los Angeles",
-   "body": "Satellite data acquired on 2025-01-02 and 2025-01-12 over a 2304.68 ha area detected likely burn-related changes impacting approximately 1877.95 ha, accounting for about 81.5% of the clear coverage. Seven polygons of change were observed, with the largest spanning 1869.12 ha. Pre-change land cover predominantly consisted of tree cover (1435.98 ha) and built-up areas (287.28 ha). Changes include substantial vegetation loss consistent with burning patterns.",
+   "headline": "Burned areas cover about 81.5% of the clear region in Pacific Palisades, Los Angeles.",
+   "body": "Analysis of satellite images from 2025-01-02 and 2025-01-12 shows likely fire-related changes over approximately 1878 hectares, which is about 81.5% of the clear area in the specified location. Most affected land was previously tree cover (1436 ha), with additional changes observed in built-up areas (287 ha), shrubland (99 ha), and smaller extents in grassland, bare vegetation, and permanent water. Seven distinct burned zones were identified, with the largest covering about 1869 hectares.",
    "caveats": [
-    "Potential haze or illumination effects may cause scene-wide index shifts affecting analysis accuracy.",
-    "The 10 m spatial resolution of Sentinel-2 data may result in missed small-scale features.",
-    "Change detection thresholds (e.g., DNBR minimum 0.27, NDVI drop minimum 0.05) influence classification of burn-related changes and are not absolute guarantees."
+    "Haze or illumination may influence the scene-wide index shift, affecting accuracy.",
+    "Sentinel-2 uses a 10 m analysis grid, so small features may be missed.",
+    "The trust level is high (score 85), but interpretation should consider known limitations."
    ],
    "numbers_used": [
-    2304.68,
     1877.95,
     81.5,
+    100.0,
+    2304.68,
     7.0,
     1869.12,
     1435.98,
     287.28,
-    10.0,
-    0.27,
-    0.05
-   ]
-  },
-  "ar": {
-   "headline": "تحليل الأقمار الصناعية يشير إلى احتمال كبير بحدوث تغييرات ناتجة عن حريق في باسيفيك باليساديس، لوس أنجلوس",
-   "body": "استنادًا إلى صور الأقمار الصناعية الملتقطة بتاريخي 2025-01-02 و2025-01-12، تظهر بيانات التحليل تغيّرًا مساحته 1877.95 هكتاراً، وهو ما يشكل نحو 81.5% من مساحة التغطية الصافية البالغة 2304.68 هكتاراً. هذه التغييرات تراوحت بين فقدان الغطاء النباتي مثل الأشجار (1435.98 هكتاراً)، والأراضي المبنية (287.28 هكتاراً)، وأراضي الشجيرات (98.81 هكتاراً) والعشب (52.81 هكتاراً)، مع تغييرات أقل في الأراضي الخالية والمياه الدائمة. هذه المعطيات تشير إلى نمط تغيّر يتطابق مع ما يُرتَقب من تأثيرات ناتجة عن حريق. وتمتاز البيانات بخلوها من السحب (0.0%) واستخدام شبكة تحليل بدقة 10 أمتار قد تغفل بعض المظاهر الصغيرة.",
-   "caveats": [
-    "تأثيرات الضباب أو الإضاءة قد تؤثر على الفارق في المؤشرات المشاهد.",
-    "شبكة التحليل الفضائية بحجم 10 أمتار قد تفوت ميزات صغيرة الحجم.",
-    "الملاحظات مبنية على نماذج تحليلية وتحتاج إلى تأكيد ميداني محتمل."
-   ],
-   "numbers_used": [
-    1877.95,
-    81.5,
-    2304.68,
-    1435.98,
-    287.28,
     98.81,
     52.81,
-    0.0,
+    2.9,
+    0.17,
+    85.0,
     10.0
    ]
   },
-  "hi": {
-   "headline": "पैसिफिक पैलिसेड्स, लॉस एंजिल्स में 1877.95 हेक्टेयर क्षेत्र में संभव जलजीवन परिवर्तन",
-   "body": "2025-01-02 से 2025-01-12 के बीच प्राप्त उपग्रह डेटा में 2304.68 हेक्टेयर के एरिया ऑफ़ इंटरेस्ट में से लगभग 81.5% (1877.95 हेक्टेयर) क्षेत्र में जलजीवन संबंधित परिवर्तन संभावित पाए गए हैं। इस परिवर्तन में मुख्य रूप से पेड़ की ढकावट में 1435.98 हेक्टेयर की कमी, Built-up क्षेत्र में 287.28 हेक्टेयर का बदलाव और छोटे हिस्सों में झाड़ी, घास और नगण्य जल क्षेत्रों का प्रभाव शामिल हो सकता है। दृश्य परिवर्तन के संकेतों में 7 विभिन्न उपखंड शामिल हैं, जिसमें सबसे बड़ा 1869.12 हेक्टेयर का है। प्राप्त आंकड़ों के आधार पर, परिवर्तन संभावित जलजीवन से संबंधित हो सकता है, लेकिन प्रभाव में धुंध और उपग्रह की 10 मीटर विश्लेषण ग्रिड की सीमाओं का ध्यान रखना आवश्यक है।",
+  "ar": {
+   "headline": "تم تحديد مناطق محترقة في باسيفيك باليساديس، لوس أنجلوس، وتمثل 81.5% من المساحة الخالية.",
+   "body": "تشير صور الأقمار الصناعية المأخوذة بتاريخ 2025-01-02 و2025-01-12 إلى تغيرات مرتبطة بالحرائق في حوالي 1877.95 هكتاراً، ما يشكل 81.5% من المساحة الخالية في المنطقة المدروسة. المناطق المتضررة تشمل بشكل رئيسي الغابات (1435.98 هكتاراً) بالإضافة إلى البناء (287.28 هكتاراً) وأراضٍ أخرى مثل الشجيرات والعشب.",
    "caveats": [
-    "धुंध या प्रकाशिकी में बदलाव से पूरे दृश्य के सूचकांक में अस्थिरता हो सकती है।",
-    "Sentinel-2 उपग्रह 10 मीटर की विश्लेषण ग्रिड पर कार्य करता है, इसलिए छोटे क्षेत्र उपेक्षित रह सकते हैं।",
-    "परिवर्तन का विश्लेषण 2025-01-02 और 2025-01-12 की तिथियों के बीच सीमित है, और अन्य संभावित कारणों का मूल्यांकन आवश्यक है।"
+    "قد يؤثر الضباب أو الإضاءة على دقة تغير المؤشرات عبر المشهد.",
+    "تستخدم بيانات Sentinel-2 شبكة تحليل بدقة 10 أمتار مما قد يؤدي إلى تجاهل المعالم الصغيرة."
    ],
    "numbers_used": [
     1877.95,
     81.5,
+    100.0,
     2304.68,
+    7.0,
+    1869.12,
     1435.98,
     287.28,
     98.81,
@@ -64,12 +50,41 @@
     2.9,
     0.17,
     6.34,
-    7.0,
-    1869.12,
     10.0,
     2025.0,
     1.0,
     2.0,
+    2025.0,
+    1.0,
+    12.0
+   ]
+  },
+  "hi": {
+   "headline": "पैसिफिक पेलिसेड्स, लॉस एंजेलिस के लगभग 81.5% साफ क्षेत्र में आग लगी।",
+   "body": "सैटेलाइट चित्रों के अनुसार, 2025-01-02 से 2025-01-12 के बीच पैसिफिक पेलिसेड्स के क्षेत्र में लगभग 1878 हेक्टेयर (81.5% साफ क्षेत्र) में आग से बदलाव हुआ है। मुख्य रूप से पेड़ का आवरण प्रभावित हुआ है, जिसमें लगभग 1436 हेक्टेयर शामिल हैं, साथ ही 287 हेक्टेयर बसा हुआ क्षेत्र, 99 हेक्टेयर झाड़ियों वाला क्षेत्र, 53 हेक्टेयर घासभूमि, और कुछ नगण्य अन्य क्षेत्र भी प्रभावित हुए हैं। यह बदलाव 7 मुख्य क्षेत्रों में फैला हुआ है।",
+   "caveats": [
+    "छवि में धुंध या प्रकाश की स्थिति के कारण सीन-व्यापी मान में बदलाव संभव है।",
+    "सेंटिनल-2 डेटा 10 मीटर के ग्रिड पर आधारित है, अतः छोटे क्षेत्र छूट सकते हैं।",
+    "विश्लेषण उच्च विश्वसनीयता स्तर (85) पर है, परंतु कृपया स्थानीय जांच भी करें।"
+   ],
+   "numbers_used": [
+    81.5,
+    1877.95,
+    1878.0,
+    100.0,
+    2304.68,
+    7.0,
+    1869.12,
+    1435.98,
+    287.28,
+    98.81,
+    52.81,
+    2.9,
+    0.17,
+    85.0,
+    2025.01,
+    2.0,
+    2025.01,
     12.0
    ]
   }

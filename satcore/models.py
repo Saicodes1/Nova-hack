@@ -104,3 +104,5 @@ class AnswerPacket(BaseModel):
     attribution: list[str]
     raw_equivalent_bytes: int | None = None
     link: LinkReport | None = None
+    # Share of the AOI clear in both images (also set when the analysis is refused).
+    clear_area_pct: float | None = None

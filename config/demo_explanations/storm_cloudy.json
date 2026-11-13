@@ -1,72 +1,51 @@
 {
  "demo_id": "storm_cloudy",
- "thresholds_version": 8,
- "cache_key": "e3b36a074e6c92b1edcf6936973400190e57f56a9d0f59e3ac559629a297006f",
- "generated": "2026-11-13T05:48:25+00:00",
+ "thresholds_version": 9,
+ "cache_key": "08862bd93d0558b0b2a0181540e6843c7de028b7ced3b3afccf1a81649f9acf8",
+ "generated": "2026-11-13T07:26:14+00:00",
  "explanations": {
   "en": {
-   "headline": "Low Confidence in Water Gain Analysis for Al Maktoum, Dubai Due to High Cloud Coverage",
-   "body": "Satellite data from 2024-03-28 and 2024-04-17 covering Al Maktoum, Dubai, shows 0% and 79.5% cloud coverage respectively, with only 20.5% of the area clear in both images. This low overlap and high cloud presence likely obscured potential water gain detection based on standard indices thresholds involving minimum delta of 0.15 and grow delta of 0.08. Analysis grid resolution of 10 meters may have further limited detection of small water features. Therefore, any water gain pattern is unlikely to be reliably detected.",
+   "headline": "There is not enough clear satellite coverage to compare these dates.",
+   "body": "Only 20.5% of the area was clear in both satellite images from 2024-03-28 and 2024-04-17, which is insufficient for reliable comparison. Check the Orbit tab for the next predicted clear pass.",
    "caveats": [
-    "High cloud coverage at 79.5% on 2024-04-17 limits visibility.",
-    "Only 20.5% of area had clear observations in both dates, leading to low overlap.",
-    "WorldCover land-cover data unavailable, restricting contextual interpretation.",
-    "10 meter Sentinel-2 resolution might miss small water features.",
-    "Analysis trust score is low at 15, indicating low confidence.",
-    "Change estimation is impeded due to cloud and missing coverage."
+    "Only 20.5% of the area was clear in both images.",
+    "Too much cloud or missing coverage prevented an estimate of change.",
+    "Sentinel-2's 10 meter analysis grid may miss small features."
    ],
    "numbers_used": [
-    0.0,
-    79.5,
     20.5,
-    0.15,
-    0.08,
-    10.0,
-    15.0
+    2024.03,
+    2024.04
    ]
   },
   "ar": {
-   "headline": "دليل قمر صناعي يشير لعدم وضوح زيادة المياه في منطقة المكتوم، دبي",
-   "body": "في يوم 2024-03-28 وسيناريوهات بيانات القمر الاصطناعي Sentinel-2 رقم S2A_T40RBN وS2A_T40RCN تم التقاطها مع تغطية سحابية بنسبة 0.0%. في 2024-04-17 تم التقاط بيانات أخرى مع تغطية سحابية مرتفعة بلغت 79.5%. حوالي 20.5% فقط من مساحة المنطقة كانت واضحة في كلا الفترتين. التقييم الحالي يشير لاحتمالية ضعيفة لرصد أي زيادة ملموسة في المياه بسبب السحب أو تغطية ناقصة للمنطقة. بعيداً عن هذه القيود، لا توجد أنماط واضحة مؤكدة لزيادة المياه في البيانات المتاحة.",
+   "headline": "لا توجد تغطية واضحة كافية للمقارنة بين التواريخ المحددة في منطقة المکتوم بدبي.",
+   "body": "لا يمكن إجراء مقارنة موثوقة بين تاريخي 2024-03-28 و2024-04-17 بسبب وجود تغطية واضحة بنسبة 20.5 من المساحة الواضحة فقط، مع تغطية سحابية مرتفعة تصل إلى 79.5 في المئة في أحد الصور. راجع تبويب المدار لمعرفة المرور التالي المتوقع بسماء صافية.",
    "caveats": [
-    "الكثير من السحب أو تغطية ناقصة حالت دون التقدير الدقيق للتغيرات.",
-    "تغطية واضحة فقط بنسبة 20.5% في كل من الصور القمرية المستخدمة.",
-    "غياب بيانات تغطية الأراضي WorldCover لتقديم سياق أفضل.",
-    "دقة تحليل Sentinel-2 تبلغ حوالي 10 أمتار مما قد يفقد التفاصيل الصغيرة."
+    "مجموعة البيانات تعاني من تغطية سحابية أو نقص في التغطية يمنع التقدير.",
+    "فقط 20.5 من المساحة كانت واضحة في كلا الصورتين.",
+    "دقة التحليل 10 أمتار، مما قد يفوت الميزات الصغيرة."
    ],
    "numbers_used": [
-    2024.0,
-    3.0,
-    28.0,
-    2024.0,
-    4.0,
-    17.0,
-    0.0,
-    79.5,
     20.5,
+    79.5,
     10.0
    ]
   },
   "hi": {
-   "headline": "अल मक्तूम, दुबई में जल स्तर में परिवर्तन की सीमा पर स्पष्टता नहीं",
-   "body": "2024-03-28 और 2024-04-17 को सेंटिनल-2 उपग्रह द्वारा अल मक्तूम, दुबई में जल स्तर की जांच के लिए छवियां प्राप्त की गईं। 28 मार्च को बादलों की अनुपस्थिति रही (0.0%), जबकि 17 अप्रैल को लगभग 79.5% क्षेत्र बादलों से ढका था। दोनों छवियों के संयोजन में केवल 20.5% क्षेत्र स्पष्ट था। ये आंकड़े जल स्तर में बदलाव का विश्वसनीय मापन सीमित करते हैं। अनुमानित जल वृद्धि या परिवर्तन की पैटर्न की पुष्टि के लिए पर्याप्त डेटा नहीं था।",
+   "headline": "मुक़ाबले के लिए क्लियर कवरेज पर्याप्त नहीं है।",
+   "body": "28 मार्च 2024 और 17 अप्रैल 2024 के बीच सिर्फ़ 20.5% हिस्सा साफ़ था, इसलिए इन दो तारिखों की तुलना करना भरोसेमंद नहीं है। अगले अनुमानित साफ़ पास के लिए Orbit टैब देखें।",
    "caveats": [
-    "बहुत अधिक बादल कवर और छवि की अनुपस्थिति ने परिवर्तन का सटीक अनुमान रोक दिया।",
-    "केवल 20.5% क्षेत्र दोनों छवियों में स्पष्ट था, जिससे विश्वसनीय तुलना कठिन हुई।",
-    "भूमि आवरण संदर्भ डेटा उपलब्ध नहीं था।",
-    "सेंटिनल-2 की 10 मीटर विश्लेषण ग्रिड छोटे जल स्रोतों को पहचानने में सीमित हो सकती है।"
+    "अधिक बादल और छिपा हुआ क्षेत्र बदलाव का अनुमान लगाने से रोका।",
+    "दोनों छवियों में केवल 20.5% क्षेत्र साफ़ था।",
+    "सेंटिनल-2 10 मीटर के विश्लेषण ग्रिड का उपयोग करता है; इसलिए छोटे क्षेत्र छूट सकते हैं।"
    ],
    "numbers_used": [
-    2024.0,
-    3.0,
-    28.0,
-    0.0,
-    2024.0,
-    4.0,
-    17.0,
-    79.5,
     20.5,
-    10.0
+    2024.03,
+    28.0,
+    2024.04,
+    17.0
    ]
   }
  }

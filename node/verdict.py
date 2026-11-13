@@ -21,5 +21,5 @@ class TemplateVerdict:
             return "No change above the detection floor."
         return (
             f"{LABELS[packet.intent]} detected over {packet.stats.changed_ha:g} ha "
-            f"({packet.stats.changed_pct:g}% of clear coverage)."
+            f"({packet.stats.changed_pct:g}% of the clear area)."
         )

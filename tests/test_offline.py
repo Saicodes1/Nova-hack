@@ -218,3 +218,61 @@ def test_stale_version_or_unsupported_numbers_are_never_shown(monkeypatch, tmp_p
         monkeypatch, tmp_path / "b", explanation_with(9999.5)
     )
     assert module.lookup("key-1", "en", packet) is None  # number not in the packet
+
+
+def test_rooftop_caveat_when_water_gain_sits_on_built_up(cached_pins, tmp_path):
+    grid = build_grid(cached_pins)
+    np.save(
+        store.worldcover_file(grid), np.full((grid.height, grid.width), 50, np.uint8)
+    )
+    cmd = UplinkCommand(
+        analysis_id=uuid4(),
+        aoi=cached_pins,
+        date_a=date(2024, 3, 22),
+        date_b=date(2024, 4, 22),
+        intent="water_gain",
+        item_a=ITEMS["A"],
+        item_b=ITEMS["B"],
+    )
+    verdict = type("V", (), {"write": lambda self, packet: ""})()
+    packet = pipeline.run_analysis(cmd, lambda *args: None, verdict)
+    assert "water_on_built_up" in packet.trust.flags
+    assert packet.trust.caveats[0].startswith("Some water detected on built-up land")
+    assert packet.clear_area_pct == packet.stats.valid_overlap_pct
+
+
+def test_refusal_has_no_land_cover_caveat_and_reports_clear_area(monkeypatch, tmp_path):
+    monkeypatch.setenv("ANALYSES_DIR", str(tmp_path))
+    entry = {c["id"]: c for c in demo.cases()}["dubai_cloudy"]
+    cmd = UplinkCommand(
+        analysis_id=uuid4(),
+        aoi=place_box(entry["lon"], entry["lat"], entry["name"]),
+        date_a=date.fromisoformat(entry["date_a"]),
+        date_b=date.fromisoformat(entry["date_b"]),
+        intent=entry["intent"],
+        demo_id="dubai_cloudy",
+    )
+    verdict = type("V", (), {"write": lambda self, packet: ""})()
+    packet = pipeline.run_analysis(cmd, lambda *args: None, verdict)
+    assert packet.status == "refused_cloudy"
+    assert "no_landcover" not in packet.trust.flags
+    assert packet.clear_area_pct is not None and packet.clear_area_pct < 40
+
+
+def test_model_evidence_leaves_out_internal_thresholds(cached_pins):
+    from ground.llm.explainer import evidence
+
+    cmd = UplinkCommand(
+        analysis_id=uuid4(),
+        aoi=cached_pins,
+        date_a=date(2024, 3, 22),
+        date_b=date(2024, 4, 22),
+        intent="water_gain",
+        item_a=ITEMS["A"],
+        item_b=ITEMS["B"],
+    )
+    verdict = type("V", (), {"write": lambda self, packet: ""})()
+    packet = pipeline.run_analysis(cmd, lambda *args: None, verdict)
+    payload = evidence(packet)
+    assert "thresholds" not in payload["trust"] and packet.trust.thresholds
+    assert "clear_area_pct" in payload

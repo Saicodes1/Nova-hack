@@ -143,7 +143,7 @@ async def run(cmd, plan, request, mode, active_node, artifact_mode):
         elif reusable:
             explanation = Explanation.model_validate_json(hit["explanation_json"])
         else:
-            explanation = await explain(packet, plan.language)
+            explanation = await explain(packet, plan.language, request.question)
         log.push("explain", "done", replayed=bool(committed is not None or reusable))
         await asyncio.to_thread(
             cache.save,

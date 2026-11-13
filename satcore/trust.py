@@ -63,7 +63,9 @@ def assess(
                 "Seasonal differences may influence this comparison.",
                 20,
             )
-        if not has_landcover:
+        if not has_landcover and stats is not None:
+            # Land cover is only looked up for completed analyses; a refusal
+            # has no land-cover context to report.
             flag("no_landcover", "WorldCover land-cover context was unavailable.")
         if haze > thresholds["haze_shift"]:
             flag(

@@ -1,70 +1,66 @@
 {
  "demo_id": "villas",
- "thresholds_version": 8,
- "cache_key": "c085110c43c4537fae26754794bb6fe9af876fe5a1c76bb80990a301459b0e51",
- "generated": "2026-11-13T05:48:37+00:00",
+ "thresholds_version": 9,
+ "cache_key": "4fbea6c7a42c360fceeae8a88fcafb68f24b98bede382af473960aed45509748",
+ "generated": "2026-11-13T05:57:54+00:00",
  "explanations": {
   "en": {
-   "headline": "Likely Urban Growth Detected in Dubai Villa District from 2019 to 2026",
-   "body": "Satellite data comparing 2019-07-08 and 2026-11-08 shows an increase in built-up area by approximately 154.31 hectares, representing about 12.6% growth within a 1222.74 hectare area. Ten polygons indicate construction candidates, with the largest new built-up polygon covering 139.33 hectares. Most conversions are from bare or sparse vegetation (126.39 ha) to built-up areas. Detected patterns suggest ongoing urban expansion over the analyzed period.",
+   "headline": "New built-up areas appeared primarily in 10 distinct locations within the Dubai villa district.",
+   "body": "Between 2019-07-08 and 2026-11-08, likely urban growth was detected across 154.31 hectares, representing 12.6% of the clear area. This growth occurred mostly where there previously was bare or sparse vegetation (126.39 hectares), with smaller additions from areas formerly shrubland, cropland, grassland, and tree cover. The largest contiguous area of new built-up land measured approximately 139.33 hectares, spread over 10 polygons.",
    "caveats": [
-    "Seasonal differences between acquisition dates may influence apparent changes.",
-    "The analysis grid resolution is approximately 10 meters, which may miss smaller features.",
-    "Changes in exposed soil might resemble new construction in the data, requiring cautious interpretation."
+    "Seasonal differences in imagery acquisition may influence the comparison between years.",
+    "The 10-meter resolution grid used may have missed smaller new built-up features.",
+    "Some identified urban growth areas could be construction candidates or changes in soil exposure, which can resemble new roads or buildings in the satellite data."
    ],
    "numbers_used": [
     154.31,
     12.6,
+    100.0,
     1222.74,
     10.0,
     139.33,
     126.39,
-    2019.0708,
-    2026.1108
+    22.17,
+    4.43,
+    0.87,
+    0.34,
+    0.11,
+    2019.07,
+    2026.11
    ]
   },
   "ar": {
-   "headline": "زيادة محتملة في المناطق المبنية بمساحة 154.31 هكتار في حي الفيلات بدبي بين 2019 و2026",
-   "body": "تشير الأدلة المستمدة من صور الأقمار الصناعية في 2019-07-08 و2026-11-08 إلى نمو محتمل في المناطق المبنية بمساحة تقارب 154.31 هكتار، ما يعادل 12.6٪ من مساحة المنطقة المشمولة (1222.74 هكتار). التغيرات تتركز في 10 مناطق مختلفة، أكبرها بحجم 139.33 هكتار. الملاحظات تشير إلى تحول من أنماط الأرض مثل الأراضي المكشوفة أو النباتية المتفرقة إلى مناطق مبنية. هذا التغير قد يشمل إنشاء مبانٍ جديدة أو توسع العمران في المنطقة.",
+   "headline": "ظهرت مناطق مبنية جديدة في منطقة الفيلات في دبي بين 2019 و2026",
+   "body": "تشير الصور الفضائية إلى نمو مباني جديدة في منطقة الفيلات في دبي حيث زادت المناطق المبنية الجديدة بمساحة تبلغ حوالي 154.31 هكتاراً، وهو ما يمثل 12.6% من المساحة الصافية التي لوحظت بوضوح. وتم رصد هذه التغيرات مع تغطية واضحة بنسبة 100% بين تواريخ 2019-07-08 و2026-11-08.",
    "caveats": [
-    "الاختلافات الموسمية بين تواريخ الصور قد تؤثر على المقارنات.",
-    "دقة التحليل تبلغ 10 أمتار، مما قد يتسبب في فقدان الميزات الصغيرة.",
-    "الأدلة قد تشمل مواقع بناء قيد التنفيذ حيث يمكن أن تشبه التربة المكشوفة الإشارات الخاصة بشوارع أو أسطح مبانٍ جديدة."
+    "الفروقات الموسمية قد تؤثر على المقارنة بين الصورتين.",
+    "تستخدم البيانات دقة تحليل تبلغ 10 أمتار، ما قد يؤدي إلى عدم رصد الميزات الصغيرة.",
+    "تضم التغيرات المكتشفة احتمالية وجود مواقع تحت الإنشاء، حيث يمكن أن تحاكي مناطق التربة المكشوفة وجود طرق أو أسطح مباني جديدة."
    ],
    "numbers_used": [
     154.31,
     12.6,
-    1222.74,
-    10.0,
-    139.33,
-    2019.0,
-    7.0,
-    8.0,
-    2026.0,
-    11.0
+    100.0,
+    2019.0708,
+    2026.1108,
+    10.0
    ]
   },
   "hi": {
-   "headline": "दुबई विला क्षेत्र में 2019 से 2026 तक लगभग 12.6% शहरी विस्तार का संकेत",
-   "body": "2019-07-08 और 2026-11-08 के सैटेलाइट डेटा के आधार पर, दुबई विला क्षेत्र (1222.74 हेक्टेयर) में लगभग 154.31 हेक्टेयर (12.6%) का शहरी विस्तार होने का अनुमान है। मुख्य भूमि परिवर्तन नग्न या कम वनस्पति क्षेत्र से शहरी क्षेत्र में हुआ। परिवर्तन दस प्रमुख भूभागों में देखा गया, सबसे बड़ा क्षेत्र लगभग 139.33 हेक्टेयर है। यह पैटर्न नई इमारतों और सड़कों के निर्माण की संभावना दर्शाता है।",
+   "headline": "दुबई के विला जिले में नए निर्मित क्षेत्र 154.31 हेक्टेयर में दिखे।",
+   "body": "2019-07-08 से 2026-11-08 के बीच, दुबई के विला जिले में लगभग 154.31 हेक्टेयर के नए बनावट वाले क्षेत्र पाए गए, जो साफ क्षेत्र का 12.6% है। यह विकास मुख्य रूप से पहले खाली या विरल वनस्पति वाले इलाकों से हुआ है।",
    "caveats": [
-    "मौसम और मौसम के अंतरालों के कारण तुलना प्रभावित हो सकती है।",
-    "सेंटिनेल-2 की 10 मीटर ग्रिड संकल्प के कारण छोटे बदलाव छूट सकते हैं।",
-    "निर्माण गतिविधि की वजह से नंगे मिट्टी में बदलाव शहरी विस्तार जैसा दिख सकता है।",
-    "परिणामों की पुष्टि नहीं की गई है, यह केवल उपग्रह डेटा से निष्कर्ष हैं।"
+    "मौसमी अंतर इस तुलना को प्रभावित कर सकते हैं।",
+    "सेंटिनल-2 का विश्लेषण ग्रिड 10 मीटर है, जिससे छोटे फीचर छूट सकते हैं।",
+    "शहरी क्षेत्र में संभावित निर्माण शामिल हो सकता है, और मिट्टी के खुले हिस्से नए सड़कों या छतों जैसे संकेत दे सकते हैं।"
    ],
    "numbers_used": [
-    55.29138014479338,
-    25.13728432840223,
-    55.326833405375396,
-    25.106412554221166,
-    1222.74,
     154.31,
     12.6,
-    10.0,
-    139.33,
-    2019.0708,
-    2026.1108
+    100.0,
+    2019.07,
+    2026.11,
+    10.0
    ]
   }
  }

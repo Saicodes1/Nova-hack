@@ -73,3 +73,21 @@ def test_explainer_retries_unsupported_number(monkeypatch, tmp_path):
     assert result == valid
     assert len(fake.requests) == 2
     assert "99999" in fake.requests[1]["input"]
+
+
+def test_refusals_always_suggest_the_next_clear_pass():
+    from ground.llm.explainer import with_next_pass
+    from ground.llm.schemas import Explanation
+
+    refused = type("P", (), {"status": "refused_cloudy"})()
+    done = type("P", (), {"status": "ok"})()
+    plain = Explanation(
+        headline="h", body="Not enough clear view.", caveats=[], numbers_used=[]
+    )
+    assert with_next_pass(plain, refused, "en").body.endswith(
+        "next predicted clear pass."
+    )
+    assert "المدار" in with_next_pass(plain, refused, "ar").body
+    already = plain.model_copy(update={"body": "See the Orbit tab."})
+    assert with_next_pass(already, refused, "en").body == "See the Orbit tab."
+    assert with_next_pass(plain, done, "en") == plain

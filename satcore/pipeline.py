@@ -238,6 +238,18 @@ def run_analysis(
         status, trust = assess(
             scenes, overlap, stats, cover is not None, cmd.season_baseline, haze
         )
+        if cmd.intent == "water_gain" and stats is not None and stats.changed_ha:
+            built = sum(r.ha for r in stats.from_to if r.from_class == "Built-up")
+            if (
+                100 * built / stats.changed_ha
+                > THRESHOLDS["trust"]["rooftop_water_pct"]
+            ):
+                trust.flags.append("water_on_built_up")
+                trust.caveats.insert(
+                    0,
+                    "Some water detected on built-up land may be bright rooftops "
+                    "rather than flooding.",
+                )
         if cmd.intent == "urban_growth" and stats is not None:
             trust.flags.append("construction_candidates")
             trust.caveats.append(
@@ -308,6 +320,7 @@ def run_analysis(
         timings_ms={},
         attribution=attribution,
         raw_equivalent_bytes=raw_equivalent(selections),
+        clear_area_pct=overlap if len(scenes) == 2 else None,
     )
     with stage("verdict"):
         packet.onboard_verdict = verdict.write(packet)
