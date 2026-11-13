@@ -29,6 +29,8 @@ def cache_key(cmd, detector=None):
         THRESHOLDS_VERSION,
         detector,
     ]
+    if cmd.item_a or cmd.item_b:  # pinned scenes (real demos); unpinned keys unchanged
+        identity.append([cmd.item_a, cmd.item_b, cmd.catalog])
     return hashlib.sha256(
         json.dumps(identity, separators=(",", ":")).encode()
     ).hexdigest()
@@ -59,12 +61,14 @@ def find(identifier):
         ).fetchone()
 
 
-def cached(key):
+def cached(key, language=None):
+    """Latest finished analysis for `key`, preferring one explained in `language`."""
     with connection() as db:
         return db.execute(
             """SELECT * FROM analyses WHERE cache_key = ? AND status = 'done'
-                             ORDER BY created_at DESC LIMIT 1""",
-            (key,),
+               ORDER BY json_extract(plan_json, '$.language') = ? DESC, created_at DESC
+               LIMIT 1""",
+            (key, language),
         ).fetchone()
 
 

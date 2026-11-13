@@ -49,6 +49,10 @@ class UplinkCommand(BaseModel):
     window_days: int = Field(15, ge=1, le=30)
     season_baseline: bool = False
     demo_id: str | None = None
+    # Pinned scenes (real demo cases): use these catalog items instead of searching.
+    item_a: list[str] | None = None
+    item_b: list[str] | None = None
+    catalog: Literal["earth-search", "planetary-computer"] = "earth-search"
 
 
 class FromTo(BaseModel):

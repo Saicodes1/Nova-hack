@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, time, timezone
 
 import numpy as np
@@ -6,21 +7,33 @@ from scipy.ndimage import gaussian_filter
 
 from .config import ROOT
 from .geo import place_box
-from .models import Grid, SceneRef
+from .models import AOI, Grid, SceneRef
 
 
 def cases():
+    """Demo cases. Real ones pin catalog scenes; synthetic ones use generated bands."""
     entries = yaml.safe_load(
         (ROOT / "config/demo_cases.yaml").read_text(encoding="utf-8")
     )["cases"]
-    return [
-        dict(
-            case,
-            aoi=place_box(case["lon"], case["lat"], case["name"]).model_dump(),
-            synthetic=True,
+    result = []
+    for case in entries:
+        synthetic = not (case.get("item_a") and case.get("item_b"))
+        if case.get("aoi"):
+            aoi = AOI(geometry=_geometry(ROOT / case["aoi"]), name=case["name"])
+        else:
+            aoi = place_box(case["lon"], case["lat"], case["name"])
+        title = f"Synthetic · {case['title']}" if synthetic else case["title"]
+        result.append(
+            dict(case, title=title, aoi=aoi.model_dump(), synthetic=synthetic)
         )
-        for case in entries
-    ]
+    return result
+
+
+def _geometry(path):
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("type") == "FeatureCollection":
+        data = data["features"][0]
+    return data.get("geometry", data)
 
 
 def scene(case_id, role, target):

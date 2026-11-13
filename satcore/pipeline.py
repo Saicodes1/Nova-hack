@@ -134,8 +134,20 @@ def run_analysis(
     selections, scenes = [], []
     for role, target in zip(("A", "B"), (cmd.date_a, cmd.date_b), strict=True):
         with stage(f"scene_select_{role.lower()}") as detail:
+            pinned = cmd.item_a if role == "A" else cmd.item_b
             if cmd.demo_id:
                 scenes.append(demo.scene(cmd.demo_id, role, target))
+            elif pinned:
+                found = store.pinned_selection(
+                    cmd.aoi,
+                    grid,
+                    pinned,
+                    role,
+                    target,
+                    cmd.catalog == "planetary-computer",
+                )
+                selections.append(found)
+                scenes.append(found.scene)
             else:
                 found = stac.select_scene(
                     cmd.aoi,
@@ -196,7 +208,7 @@ def run_analysis(
                     ia, ib, a, b, detectable, grid, cmd.intent, model_score
                 )
             with stage("landcover"):
-                cover = None if cmd.demo_id else stac.worldcover(cmd.aoi, grid)
+                cover = None if cmd.demo_id else store.worldcover(cmd.aoi, grid)
                 if cover is not None and cmd.intent != "visible_change":
                     stable = valid & np.isin(cover, [50, 60])
                     index = {

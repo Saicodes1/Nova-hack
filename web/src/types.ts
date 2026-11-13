@@ -27,7 +27,7 @@ export function featureBounds(geometry:Geometry):Bounds {
   if ('coordinates' in geometry) walk(geometry.coordinates);
   return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
 }
-export type Demo = {id:string; title:string; aoi:AOI; date_a:string; date_b:string; intent:Intent; question:string};
+export type Demo = {id:string; title:string; aoi:AOI; date_a:string; date_b:string; intent:Intent; question:string; synthetic:boolean};
 export type Scene = {role:string; item_ids:string[]; datetime:string; requested_date:string; aoi_cloud_pct:number; source:string};
 export type Packet = {
   analysis_id:string; aoi:AOI; intent:Intent; status:string; scenes:Scene[]; image_bounds:Point[];

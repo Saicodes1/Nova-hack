@@ -301,7 +301,7 @@ export default function MapPanel({trackData}:{trackData:Tracks|null}) {
     </div>}
     <div className="map-status">
       <span><Crosshair size={16}/>{aoi ? <>{aoi.name||'Drawn area'} <span className={areaKm(aoi)>50.1?'warning':''}>· {number(areaKm(aoi))} km²</span></> : 'No area selected'}</span>
-      <span>{packet?.scenes.some(scene=>scene.source==='synthetic') || station.demoId ? 'Synthetic demo' : 'Sentinel-2'}</span>
+      <span>{packet?.scenes.some(scene=>scene.source==='synthetic') || (station.demoId && station.demoSynthetic) ? 'Synthetic demo' : 'Sentinel-2'}</span>
     </div>
   </section>;
 }

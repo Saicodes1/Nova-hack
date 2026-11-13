@@ -37,6 +37,21 @@ Choose **Run demo** to generate an offline example. The four demo cases use expl
 
 For real imagery select **Live Sentinel-2**. Draw a polygon or rectangle, or choose a place to create a 5 km box. Pick before and after dates, choose an analysis type, and submit. The maximum area is 50 km². Acquisition dates can differ from requested dates when the catalog supplies better coverage nearby.
 
+## Real demo cases and offline mode
+
+The data-source menu lists real demo cases first: Dubai storm flood, the same storm on a cloud-covered date (the app declines to estimate), Dubai villa growth, Rondônia forest clearing and the Palisades fire. Each pins its Sentinel-2 scenes in `config/demo_cases.yaml`, so it replays identically. The synthetic demos remain, labelled "Synthetic".
+
+To play the real demos without a network, prepare them once while online (macOS/Linux shown):
+
+```bash
+.venv/bin/python -m scripts.prep_demo fetch    # cache the pinned scenes and WorldCover
+.venv/bin/python -m scripts.prep_demo run      # run each case in English, Arabic and Hindi
+.venv/bin/python -m scripts.prep_demo verify   # recompute from the cache; fails if hectares move > 2%
+OFFLINE=1 .venv/bin/python -m uvicorn ground.main:app --host 127.0.0.1 --port 8000
+```
+
+With `OFFLINE=1` the top bar shows "Offline demo", live queries are declined, OpenAI is not called, and explanations come from the cache (run `prep_demo run` with `OPENAI_API_KEY` set to cache model-written ones). The basemap needs internet; the imagery and patches do not. To add a case, give it an AOI and dates, then use `prep_demo list --case ID` to compare candidate scenes and `prep_demo pin --case ID --a ITEM --b ITEM` to pin them.
+
 ## How change detection works
 
 Every analysis type uses the same two-step approach (`satcore/change.py`, thresholds in `config/thresholds.yaml`):

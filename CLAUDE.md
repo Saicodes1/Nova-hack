@@ -43,6 +43,7 @@ make dev      # build web, run ground station on http://127.0.0.1:8000
 make flight   # run the HTTP node on :8100 (then NODE_MODE=remote NODE_URL=http://127.0.0.1:8100)
 make test-live  # tests that need public data services
 python -m scripts.eval_patches fetch|run|report [--case ID]  # accuracy harness (run/report offline)
+python -m scripts.prep_demo list|pin|fetch|run|verify  # real demo cases; then OFFLINE=1 make dev
 ```
 
 Accuracy cases: `config/eval_cases.yaml` (pinned scenes), AOIs in `config/eval_aois/`, hand-drawn

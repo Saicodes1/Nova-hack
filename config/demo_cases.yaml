@@ -1,4 +1,59 @@
+# Demo cases shown in the data-source menu, real ones first (the first is the default).
+# Real cases pin catalog scenes (item_a / item_b), so they replay identically and can run
+# offline once prepared:  python -m scripts.prep_demo fetch && python -m scripts.prep_demo run
+# Cases without pins use synthetic imagery and are labelled "Synthetic" in the menu.
 cases:
+  - id: storm
+    title: Dubai storm flood, April 2024
+    name: Al Maktoum, Dubai
+    aoi: config/eval_aois/dubai_storm.geojson
+    intent: water_gain
+    date_a: '2024-03-28'
+    date_b: '2024-04-22'
+    item_a: [S2A_T40RBN_20240328T065608_L2A, S2A_T40RCN_20240328T065608_L2A]
+    item_b: [S2B_T40RBN_20240422T065245_L2A, S2B_T40RCN_20240422T065245_L2A]
+    question: Did standing water appear after the April 2024 storm?
+  - id: storm_cloudy
+    title: Dubai storm, cloud-covered date
+    name: Al Maktoum, Dubai
+    aoi: config/eval_aois/dubai_storm.geojson
+    intent: water_gain
+    date_a: '2024-03-28'
+    date_b: '2024-04-17'
+    question: Is there enough clear coverage to compare these dates?
+    item_a: [S2A_T40RBN_20240328T065608_L2A, S2A_T40RCN_20240328T065608_L2A]
+    item_b: [S2A_T40RBN_20240417T070110_L2A, S2A_T40RCN_20240417T070110_L2A]
+  - id: villas
+    title: Dubai villa district growth
+    name: Dubai villa district
+    aoi: config/eval_aois/dubai_villas.geojson
+    intent: urban_growth
+    date_a: '2019-07-08'
+    date_b: '2026-11-08'
+    item_a: [S2B_T40RCN_20190708T065440_L2A]
+    item_b: [S2B_T40RCN_20261108T070105_L2A]
+    question: Where did new built-up areas appear?
+  - id: rondonia_clearing
+    title: Rondônia forest clearing
+    name: Rondônia, Brazil
+    aoi: config/eval_aois/rondonia.geojson
+    intent: veg_loss
+    date_a: '2019-08-02'
+    date_b: '2024-07-31'
+    item_a: [S2B_T20LLQ_20190802T144505_L2A, S2B_T20LLR_20190802T144505_L2A]
+    item_b: [S2A_T20LLQ_20240731T143745_L2A, S2A_T20LLR_20240731T143745_L2A]
+    question: Where was forest cleared?
+  - id: palisades
+    title: Palisades fire, January 2025
+    name: Pacific Palisades, Los Angeles
+    aoi: config/eval_aois/palisades_fire.geojson
+    intent: burn
+    date_a: '2025-01-02'
+    date_b: '2025-01-12'
+    item_a: [S2A_T11SLT_20250102T183754_L2A]
+    item_b: [S2A_T11SLT_20250112T183727_L2A]
+    question: Which areas burned?
+  # Synthetic demos (generated imagery, no network needed).
   - id: dubai_flood
     title: Dubai storm
     name: Dubai South

@@ -25,7 +25,7 @@ from satcore.models import AOI, AnswerPacket, Intent, Language, UplinkCommand
 from . import cache, geocode, orbit
 from .events import EventLog
 from .link import RATES, downlink
-from .llm.client import configured
+from .llm.client import configured, offline
 from .llm.explainer import explain
 from .llm.planner import plan_question
 from .llm.schemas import AnalysisPlan, Explanation
@@ -93,7 +93,7 @@ async def run(cmd, plan, request, mode, active_node, artifact_mode):
         )
         key = cache.cache_key(cmd, detector)
         hit = await asyncio.to_thread(
-            cached_result, key, model_analysis, artifact_mode, detector
+            cached_result, key, model_analysis, artifact_mode, detector, plan.language
         )
         artifact_id = identifier
         if hit:
@@ -167,7 +167,7 @@ async def run(cmd, plan, request, mode, active_node, artifact_mode):
         job_modes.pop(identifier, None)
 
 
-def cached_result(key, model_analysis, artifact_mode, detector):
+def cached_result(key, model_analysis, artifact_mode, detector, language=None):
     """Return a reusable cached analysis, or None to run a fresh one.
 
     Two cases are never reused:
@@ -178,7 +178,7 @@ def cached_result(key, model_analysis, artifact_mode, detector):
     """
     if model_analysis and artifact_mode == "remote":
         return None
-    hit = cache.cached(key)
+    hit = cache.cached(key, language)
     if hit and detector:
         flags = json.loads(hit["packet_json"])["trust"]["flags"]
         if "construction_candidates" in flags and "fresunet_assisted" not in flags:
@@ -186,9 +186,15 @@ def cached_result(key, model_analysis, artifact_mode, detector):
     return hit
 
 
-def start(aoi, plan, request):
+def start(aoi, plan, request, entry=None):
     from satcore.urban_model import model_identity
 
+    real_demo = bool(entry and not entry["synthetic"])
+    if offline() and not entry:
+        raise HTTPException(
+            503,
+            "Offline demo mode: live Sentinel-2 queries need a network. Choose a demo case.",
+        )
     try:
         build_grid(aoi)
     except ValueError as exc:
@@ -217,7 +223,11 @@ def start(aoi, plan, request):
         date_a=plan.date_a,
         date_b=plan.date_b,
         intent=plan.intent,
-        demo_id=request.demo_id,
+        # Real demos run the live pipeline on pinned scenes; synthetic ones use demo bands.
+        demo_id=None if real_demo else request.demo_id,
+        item_a=entry.get("item_a") if real_demo else None,
+        item_b=entry.get("item_b") if real_demo else None,
+        catalog=entry.get("catalog", "earth-search") if real_demo else "earth-search",
     )
     mode = request.link_mode or os.getenv("LINK_MODE", "demo-fast")
     if mode not in RATES:
@@ -235,6 +245,7 @@ demo_node = node if node_mode == "local" else LocalNode()
 
 @app.post("/api/ask")
 async def ask(request: Ask):
+    entry = None
     if request.demo_id:
         entry = next((item for item in cases() if item["id"] == request.demo_id), None)
         if entry is None:
@@ -302,7 +313,7 @@ async def ask(request: Ask):
                 }
             place = locations[0]
             aoi = place_box(place["lon"], place["lat"], place["name"])
-    return start(aoi, plan, request)
+    return start(aoi, plan, request, entry)
 
 
 @app.get("/api/analyses/{identifier}/events")
@@ -499,6 +510,7 @@ async def health():
             "STAC_PRIMARY", "https://earth-search.aws.element84.com/v1"
         ),
         "openai": {"planner": configured(), "explainer": configured()},
+        "offline": offline(),
     }
 
 

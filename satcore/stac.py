@@ -62,7 +62,7 @@ def _assets(items, backup: bool) -> dict[str, list[Asset]]:
     return dict(result)
 
 
-def _search(
+def ranked_scenes(
     aoi: AOI,
     grid: Grid,
     target: date,
@@ -70,7 +70,9 @@ def _search(
     window: int,
     backup: bool,
     after: datetime | None,
+    limit: int = 5,
 ):
+    """Candidate acquisitions near `target`, best first (AOI cloud % + 0.5 x days off)."""
     client, collection = _catalog(backup)
     items = client.search(
         collections=[collection],
@@ -104,7 +106,7 @@ def _search(
     )
     preview = _preview_grid(aoi, grid)
     ranked, failures = [], []
-    for items in groups[:5]:
+    for items in groups[:limit]:
         try:
             selection = _selection(items, preview, role, target, backup)
         except RasterioError as exc:
@@ -118,7 +120,20 @@ def _search(
         )
     if not ranked and failures:
         raise failures[0]
-    return min(ranked, key=lambda pair: pair[0])[1] if ranked else None
+    return [selection for _, selection in sorted(ranked, key=lambda pair: pair[0])]
+
+
+def _search(
+    aoi: AOI,
+    grid: Grid,
+    target: date,
+    role,
+    window: int,
+    backup: bool,
+    after: datetime | None,
+):
+    ranked = ranked_scenes(aoi, grid, target, role, window, backup, after)
+    return ranked[0] if ranked else None
 
 
 def tile_id(item) -> str:

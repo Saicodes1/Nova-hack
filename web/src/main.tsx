@@ -22,6 +22,7 @@ function App() {
   const [telemetry,setTelemetry]=useState<Telemetry|null>(null);
   const [online,setOnline]=useState<boolean|null>(null);
   const [openai,setOpenai]=useState<{planner:boolean;explainer:boolean}|null>(null);
+  const [offline,setOffline]=useState(false);
   const [demoError,setDemoError]=useState('');
   const [passRows,setPassRows]=useState<Pass[]|null>(null);
   const [orbitNote,setOrbitNote]=useState('');
@@ -35,7 +36,7 @@ function App() {
   const chatVersion=useRef(0);
 
   function applyDemo(demo:Demo) {
-    set({demoId:demo.id,question:demo.question,aoi:demo.aoi,dateA:demo.date_a,dateB:demo.date_b,
+    set({demoId:demo.id,demoSynthetic:demo.synthetic,question:demo.question,aoi:demo.aoi,dateA:demo.date_a,dateB:demo.date_b,
       intent:demo.intent,error:'',result:null,stages:[],currentId:null,swipe:50});
   }
 
@@ -46,7 +47,7 @@ function App() {
       const current=useStation.getState();
       if (cases[0]&&!current.question&&!current.aoi) applyDemo(cases[0]);
     }).catch(()=>{if(!controller.signal.aborted) setDemoError('Demo cases are unavailable. Check the ground server.');});
-    api<{openai:{planner:boolean;explainer:boolean}}>('/health',undefined,controller.signal).then(data=>setOpenai(data.openai)).catch(()=>{});
+    api<{openai:{planner:boolean;explainer:boolean};offline?:boolean}>('/health',undefined,controller.signal).then(data=>{setOpenai(data.openai);setOffline(Boolean(data.offline));}).catch(()=>{});
     function poll(){
       api<Telemetry>('/telemetry',undefined,controller.signal).then(data=>{
         setTelemetry(data);setOnline(true);
@@ -155,6 +156,7 @@ function App() {
     <header className="topbar">
       <div className="identity"><span className="logo"><Satellite size={23}/></span><div><h1>Ask the Satellite</h1><p>Sentinel-2 Ground Station</p></div></div>
       <div className="telemetry">
+        {offline&&<span className="node-state">Offline demo</span>}
         <span className="node-state"><i className={online?'dot online':'dot'}/>{online ? (telemetry?.mode==='remote'?'Remote node':'Local node') : online===false?'Node unavailable':'Connecting'}{online&&telemetry?.state!=='idle'?' · '+telemetry?.state:''}</span>
         <span><Radio size={15}/> {station.mode==='uhf-9k6'?'UHF':'S-band'} · {station.mode==='uhf-9k6'?'9.6 kbps':'2 Mbps'}</span>
         {telemetry?.power_w!=null&&<span>{telemetry.power_w} W</span>}
@@ -164,7 +166,7 @@ function App() {
     <main className="workspace">
       <div className="main-side">
         <div className="map-heading"><div><h2>Observation area</h2><p>{packet?.aoi.name || station.aoi?.name || (station.aoi ? 'Drawn area · '+number(areaKm(station.aoi))+' km²' : 'Search, draw a rectangle or a polygon')}</p></div>
-          <span className="source-tag"><Satellite size={16}/>{station.demoId||analysisSource?'Synthetic demonstration':'Sentinel-2 imagery'}</span>
+          <span className="source-tag"><Satellite size={16}/>{(station.demoId&&station.demoSynthetic)||analysisSource?'Synthetic demonstration':'Sentinel-2 imagery'}</span>
         </div>
         <MapPanel trackData={trackData}/>
       </div>
@@ -226,7 +228,7 @@ function App() {
                   <option value="en">English</option><option value="ar">العربية</option><option value="hi">हिन्दी</option>
                 </select></label>
               </div>
-              {station.demoId&&<p className="field-note">This demo uses synthetic imagery.</p>}
+              {station.demoId&&station.demoSynthetic&&<p className="field-note">This demo uses synthetic imagery.</p>}
               {!station.demoId&&openai&&!openai.planner&&!completeForm&&<p className="field-note">Select an area, two dates, and an analysis type to run without OpenAI.</p>}
               <button className="primary" disabled={station.busy||(!station.question.trim()&&!completeForm)}><Satellite size={17}/>
                 {station.busy?(active?stages[active.stage]:'Planning…'):station.demoId?'Run demo':'Ask the satellite'}<ArrowRight size={16}/></button>
@@ -258,7 +260,7 @@ function App() {
                   <option value="en">English</option><option value="ar">العربية</option><option value="hi">हिन्दी</option>
                 </select></label>
               </div>
-              {station.demoId&&<p className="field-note">This demo uses synthetic imagery.</p>}
+              {station.demoId&&station.demoSynthetic&&<p className="field-note">This demo uses synthetic imagery.</p>}
               {!station.demoId&&openai&&!openai.planner&&!completeForm&&<p className="field-note">Select an area, two dates, and an analysis type to run without OpenAI.</p>}
               <button className="primary" disabled={station.busy||(!station.question.trim()&&!completeForm)}><Satellite size={17}/>
                 {station.busy?(active?stages[active.stage]:'Planning…'):station.demoId?'Run demo':'Ask the satellite'}<ArrowRight size={16}/></button>
