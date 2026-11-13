@@ -114,6 +114,7 @@ def candidates(
     reflectance=None,
     model_score: np.ndarray | None = None,
     scl: tuple[np.ndarray, np.ndarray] | None = None,
+    cover: np.ndarray | None = None,
 ):
     """Seed and grow masks (restricted to `valid`), change signal and hole limit."""
     max_hole_ha = None
@@ -129,7 +130,7 @@ def candidates(
     elif intent.startswith("water"):
         seed, grow, signal = water_change(a, b, intent, scl)
     elif intent in ("veg_loss", "veg_gain"):
-        seed, grow, signal = vegetation_change(a, b, intent)
+        seed, grow, signal = vegetation_change(a, b, intent, valid, cover)
     elif intent == "urban_growth":
         if reflectance is None:
             seed = grow = urban_rules(a, b, valid, None, model_score)
@@ -187,9 +188,31 @@ def water_change(a, b, intent, scl):
     return seed, grow, shift
 
 
-def vegetation_change(a, b, intent):
+def ndvi_shift(a, b, valid, cover) -> float:
+    """Scene-wide NDVI shift between dates, measured on stable vegetation.
+
+    Season, drought haze or illumination can move NDVI everywhere at once. The
+    median change over WorldCover tree cover estimates that shift (cropland is
+    not used: it cycles, and may only have become cropland within the window).
+    Shifts within +/- min_abs_shift are treated as noise and not corrected.
+    Returns 0 without WorldCover or with fewer than `min_px` such pixels.
+    """
+    settings = T["veg_shift"]
+    if cover is None:
+        return 0.0
+    delta = b["ndvi"] - a["ndvi"]
+    stable = valid & np.isin(cover, settings["stable_classes"]) & np.isfinite(delta)
+    if stable.sum() < settings["min_px"]:
+        return 0.0
+    shift = float(np.median(delta[stable]))
+    return shift if abs(shift) > settings["min_abs_shift"] else 0.0
+
+
+def vegetation_change(a, b, intent, valid=None, cover=None):
     settings = T[intent]
-    ndvi_a, ndvi_b = finite(a["ndvi"]), finite(b["ndvi"])
+    shift = ndvi_shift(a, b, valid if valid is not None else True, cover)
+    # Remove the scene-wide shift from date B before applying the thresholds.
+    ndvi_a, ndvi_b = finite(a["ndvi"]), finite(b["ndvi"]) - shift
     delta = ndvi_b - ndvi_a
     if intent == "veg_loss":
         seed = (ndvi_a > settings["ndvi_before_min"]) & (delta < settings["delta_max"])

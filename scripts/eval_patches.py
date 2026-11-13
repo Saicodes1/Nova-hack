@@ -166,7 +166,7 @@ def evaluate(intent, aoi, grid, a, b, *, demo_id=None, reference=None, cover=Non
     if pipeline.uses_model(intent, demo_id):
         model_score = pipeline.model_scores(a, b, valid, intent)
     labels, edge, geojson, seed = pipeline.detect_patches(
-        ia, ib, a, b, detectable, grid, intent, model_score
+        ia, ib, a, b, detectable, grid, intent, model_score, cover
     )
     stats = pipeline.change_stats(labels, valid, edge, geojson, overlap, aoi, grid)
     mask = labels > 0

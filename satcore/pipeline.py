@@ -77,21 +77,29 @@ def model_scores(a: dict, b: dict, valid: np.ndarray, intent: str):
         return None
 
 
-def _evidence(a, b, model_score):
+def _evidence(a, b, model_score, cover=None):
     """Keyword arguments shared by change.detect and change.candidates."""
     return {
         "reflectance": (a, b),
         "model_score": model_score,
+        "cover": cover,
         "scl": (a["scl"], b["scl"]),
     }
 
 
-def detect_patches(ia, ib, a, b, detectable, grid, intent, model_score=None):
+def uses_cover(intent: str) -> bool:
+    """Whether detection needs WorldCover (vegetation: scene-wide NDVI shift)."""
+    return intent in ("veg_loss", "veg_gain")
+
+
+def detect_patches(
+    ia, ib, a, b, detectable, grid, intent, model_score=None, cover=None
+):
     """Labelled patches, cloud-edge zone, patch polygons and the seed pixels."""
     edge = masks.cloud_edge(a["scl"], b["scl"], cloud_buffer_px() + 2)
     pixel_ha = grid.resolution**2 / 10_000
     found = change.candidates(
-        ia, ib, detectable, intent, **_evidence(a, b, model_score)
+        ia, ib, detectable, intent, **_evidence(a, b, model_score, cover)
     )
     labels = change.patches(found, detectable, pixel_ha)
     geojson = change.polygons(labels, edge, grid, intent, found)
@@ -204,11 +212,14 @@ def run_analysis(
                         if model_score is not None
                         else "Built-up evidence"
                     )
+                if uses_cover(cmd.intent) and not cmd.demo_id:
+                    cover = store.worldcover(cmd.aoi, grid)
                 labels, edge, geojson, _ = detect_patches(
-                    ia, ib, a, b, detectable, grid, cmd.intent, model_score
+                    ia, ib, a, b, detectable, grid, cmd.intent, model_score, cover
                 )
             with stage("landcover"):
-                cover = None if cmd.demo_id else store.worldcover(cmd.aoi, grid)
+                if cover is None and not cmd.demo_id and not uses_cover(cmd.intent):
+                    cover = store.worldcover(cmd.aoi, grid)
                 if cover is not None and cmd.intent != "visible_change":
                     stable = valid & np.isin(cover, [50, 60])
                     index = {

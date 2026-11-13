@@ -1,7 +1,10 @@
-version: 7
+version: 8
 water: {mndwi: 0.0, ndwi: 0.0, ndwi_fallback: 0.0, min_delta: 0.15, grow_index: -0.05, grow_delta: 0.08, opening_px: 2}
 veg_loss: {ndvi_before_min: 0.4, delta_max: -0.2, grow_ndvi_before_min: 0.3, grow_delta_max: -0.12}
 veg_gain: {ndvi_after_min: 0.4, delta_min: 0.2, grow_ndvi_after_min: 0.3, grow_delta_min: 0.12}
+# Scene-wide NDVI shift removed before vegetation thresholds: median ΔNDVI over these
+# WorldCover classes (10 = tree cover), if at least min_px are clear and |shift| > min_abs_shift.
+veg_shift: {stable_classes: [10], min_px: 500, min_abs_shift: 0.05}
 urban_growth:
   ndbi_delta_min: 0.1
   ndvi_after_max: 0.2

@@ -242,3 +242,32 @@ def test_water_is_never_burn_scar():
     seed, grow, _ = burn_change(dict(dnbr_burn, mndwi=land), dict(after, mndwi=sea))
     assert seed[:, :10].all() and grow[:, :10].all()
     assert not seed[:, 10:].any() and not grow[:, 10:].any()
+
+
+def test_scene_wide_ndvi_shift_is_removed_only_beyond_noise():
+    """rondonia_seasonal (Phase 2): pasture and forest both dried between seasons
+    (tree-cover median ΔNDVI -0.38), reading as vegetation loss everywhere.
+
+    The median ΔNDVI on WorldCover tree cover is removed before the thresholds,
+    but only when it exceeds the noise band (|shift| > 0.05), so a small real
+    greening (Rondônia, +0.04) does not push borderline pixels into loss.
+    """
+    from satcore.change import ndvi_shift, vegetation_change
+
+    rng = np.random.default_rng(0)
+    shape = (60, 60)
+    cover = np.full(shape, 10, np.uint8)  # all tree cover
+    valid = np.ones(shape, bool)
+    before = {"ndvi": 0.8 + rng.normal(0, 0.01, shape)}
+
+    dried = {"ndvi": before["ndvi"] - 0.38}  # whole scene browned: not real loss
+    assert abs(ndvi_shift(before, dried, valid, cover) + 0.38) < 0.01
+    seed, grow, _ = vegetation_change(before, dried, "veg_loss", valid, cover)
+    assert not seed.any() and not grow.any()
+    seed, _, _ = vegetation_change(before, dried, "veg_loss")  # without WorldCover
+    assert seed.all()
+
+    greener = {"ndvi": before["ndvi"] + 0.04}
+    assert (
+        ndvi_shift(before, greener, valid, cover) == 0.0
+    )  # within noise: no correction
