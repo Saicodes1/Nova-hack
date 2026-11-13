@@ -42,3 +42,13 @@ so the proposed rule would grey out a true answer), visible change (FresUNet not
 Phase 3.
 
 Overlays of the reverted attempts are kept locally in `var/eval/attempts/`.
+
+## Final round (after tag demo-v1)
+
+Same gate, plus per-step targets set beforehand.
+
+| change | target | result | kept |
+| --- | --- | --- | --- |
+| Burn water mask: MNDWI > 0 in either scene is never burn (`burn.water_mndwi_max: 0.0`, v7) | palisades IoU >= 0.855 and no ocean-edge patch | IoU 0.855 → 0.856 (precision 0.986 → 0.995); burn on permanent water 17.09 → 0.17 ha, no patch left on water | yes |
+| Tree-cover NDVI shift, only when abs shift > 0.05 (`veg_shift`, v8) | rondonia IoU >= 0.514 and rondonia_seasonal < 1754 ha | rondonia IoU 0.534 unchanged (shift +0.038 within noise); rondonia_seasonal 1754.35 → 351.07 ha | yes |
+| Water `nir_max` | — | skipped until the hand-drawn storm reference exists | — |
