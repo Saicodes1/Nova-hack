@@ -3,6 +3,8 @@
     python -m scripts.eval_patches fetch [--case ID]   # network: select scenes, cache bands
     python -m scripts.eval_patches run [--case ID]     # offline: detect, score, draw overlays
     python -m scripts.eval_patches report              # offline: var/eval/report.html + docs/eval_baseline.md
+    python -m scripts.eval_patches snapshot            # freeze current metrics as the baseline
+    python -m scripts.eval_patches compare             # offline: current metrics vs baseline; exit 1 on regression
 
 Cases live in config/eval_cases.yaml, AOIs in config/eval_aois/, optional hand-drawn
 true-change polygons in config/eval_refs/. Detection calls the same satcore functions
@@ -24,10 +26,11 @@ from rasterio.features import rasterize
 from scipy.ndimage import binary_erosion, label
 from shapely.geometry import mapping, shape
 
-from satcore import indices, masks, pipeline, stac, store
+from satcore import change, indices, masks, pipeline, stac, store
 from satcore.config import ROOT, THRESHOLDS, data_path
 from satcore.geo import affine as grid_affine
 from satcore.geo import aoi_mask, build_grid, project, transform
+from satcore.landcover import CLASSES
 from satcore.models import AOI, SceneRef
 
 CASES_FILE = ROOT / "config/eval_cases.yaml"
@@ -151,7 +154,7 @@ def cached_bands(case: dict):
     return manifest, grid, bands
 
 
-def evaluate(intent, aoi, grid, a, b, *, demo_id=None, reference=None):
+def evaluate(intent, aoi, grid, a, b, *, demo_id=None, reference=None, cover=None):
     """Detect patches exactly as run_analysis does and measure them."""
     inside = aoi_mask(aoi, grid)
     valid, detectable, overlap = pipeline.clear_masks(a, b, inside, intent)
@@ -162,10 +165,9 @@ def evaluate(intent, aoi, grid, a, b, *, demo_id=None, reference=None):
     model_score = None
     if pipeline.uses_model(intent, demo_id):
         model_score = pipeline.model_scores(a, b, valid, intent)
-    labels, edge, geojson = pipeline.detect_patches(
+    labels, edge, geojson, seed = pipeline.detect_patches(
         ia, ib, a, b, detectable, grid, intent, model_score
     )
-    seed = pipeline.seed_mask(ia, ib, a, b, detectable, intent, model_score)
     stats = pipeline.change_stats(labels, valid, edge, geojson, overlap, aoi, grid)
     mask = labels > 0
     pixel_ha = grid.resolution**2 / 10_000
@@ -181,6 +183,12 @@ def evaluate(intent, aoi, grid, a, b, *, demo_id=None, reference=None):
         "seed_share": seed_share(seed, mask),
         "detector": "FresUNet + rules" if model_score is not None else "rules",
     }
+    if cover is not None:
+        metrics["ha_by_cover"] = ha_by_cover(mask, cover, pixel_ha)
+    if intent.startswith("water"):
+        metrics["clear_water_change_detected_pct"] = clear_water_change(
+            ia, ib, a, b, detectable, mask, intent
+        )
     if reference is not None:
         metrics.update(
             score_reference(
@@ -200,6 +208,33 @@ def evaluate(intent, aoi, grid, a, b, *, demo_id=None, reference=None):
         geojson=geojson,
         metrics=metrics,
     )
+
+
+def ha_by_cover(mask, cover, pixel_ha) -> dict[str, float]:
+    """Detected hectares per WorldCover class (a proxy where no reference exists)."""
+    codes, counts = np.unique(cover[mask], return_counts=True)
+    return {
+        CLASSES.get(int(code), str(code)): round(float(count) * pixel_ha, 2)
+        for code, count in zip(codes, counts, strict=True)
+    }
+
+
+def clear_water_change(ia, ib, a, b, detectable, mask, intent) -> float | None:
+    """% of clear-cut water change that was detected (proxy for missed margins).
+
+    Clear-cut: the water index crosses zero in the asked direction and the
+    water votes (MNDWI, NDWI, SCL) agree on both dates, so the pixel really
+    changed state. Turbid water that still votes water is not counted.
+    """
+    wet_a, wet_b = change.water_index(ia) > 0, change.water_index(ib) > 0
+    vote_a, vote_b = change.water(ia, a["scl"]), change.water(ib, b["scl"])
+    if intent == "water_gain":
+        plain = ~wet_a & wet_b & ~vote_a & vote_b
+    else:
+        plain = wet_a & ~wet_b & vote_a & ~vote_b
+    plain &= detectable
+    total = int(plain.sum())
+    return round(100 * float((mask & plain).sum()) / total, 1) if total else None
 
 
 def seed_share(seed: np.ndarray, mask: np.ndarray) -> float | None:
@@ -288,8 +323,16 @@ def run(case: dict) -> dict:
     ref_path = ROOT / case["reference"] if case.get("reference") else None
     has_ref = bool(ref_path and ref_path.exists())
     reference = reference_rasters(ref_path, grid) if has_ref else None
+    cover_file = case_dir(case) / "worldcover.npy"
+    cover = np.load(cover_file) if cover_file.exists() else None
     result = evaluate(
-        case["intent"], case["aoi_model"], grid, a, b, reference=reference
+        case["intent"],
+        case["aoi_model"],
+        grid,
+        a,
+        b,
+        reference=reference,
+        cover=cover,
     )
     directory = case_dir(case)
     metrics = dict(
@@ -483,15 +526,109 @@ def baseline_doc(rows, version) -> None:
     BASELINE_DOC.write_text("\n".join(lines) + "\n", "utf-8")
 
 
+# ---------------------------------------------------------------- compare
+
+IOU_TOLERANCE = 0.02  # a referenced case may not lose more than 2 IoU points
+
+
+def snapshot_file() -> Path:
+    return out_dir() / "baseline.json"
+
+
+def snapshot(cases) -> dict:
+    """Freeze the current metrics of every case as the comparison baseline."""
+    frozen = {case["id"]: metrics for case, metrics in collected(cases) if metrics}
+    frozen["_thresholds_version"] = THRESHOLDS["version"]
+    snapshot_file().write_text(json.dumps(frozen, indent=1), "utf-8")
+    return frozen
+
+
+def check_case(case: dict, before: dict | None, after: dict | None) -> list[str]:
+    """Problems with `after` vs `before` for one case (empty list = pass)."""
+    if after is None:
+        return ["not run"]
+    if before is None:
+        return []  # new case: nothing to regress against
+    problems = []
+    if before.get("iou") is not None and after.get("iou") is not None:
+        if after["iou"] < before["iou"] - IOU_TOLERANCE:
+            problems.append(f"IoU {before['iou']} -> {after['iou']}")
+    guards = case.get("guards") or {}
+    ha = after.get("changed_ha") or 0
+    if "min_ha" in guards and ha < guards["min_ha"]:
+        problems.append(f"{ha} ha < min {guards['min_ha']}")
+    if (
+        "max_patches" in guards
+        and (after.get("n_patches") or 0) > guards["max_patches"]
+    ):
+        problems.append(f"{after['n_patches']} patches > max {guards['max_patches']}")
+    if "ha_within_pct" in guards and before.get("changed_ha"):
+        drift = 100 * abs(ha - before["changed_ha"]) / before["changed_ha"]
+        if drift > guards["ha_within_pct"]:
+            problems.append(f"ha moved {drift:.1f}% (> {guards['ha_within_pct']}%)")
+    for name in guards.get("no_drop", []):
+        old, new = before.get(name), after.get(name)
+        if old is not None and (new is None or new < old - 0.5):
+            problems.append(f"{name} {old} -> {new}")
+    for cls, max_drop in (guards.get("keep_cover_ha") or {}).items():
+        old = (before.get("ha_by_cover") or {}).get(cls, 0)
+        new = (after.get("ha_by_cover") or {}).get(cls, 0)
+        if old and new < old * (1 - max_drop / 100):
+            problems.append(f"{cls} {old} -> {new} ha (> {max_drop}% drop)")
+    return problems
+
+
+PROXY_KEYS = ("iou", "clear_water_change_detected_pct", "changed_ha")
+
+
+def proxy(metrics: dict | None) -> str:
+    """The headline number for a case: IoU when referenced, else a proxy."""
+    if not metrics:
+        return "–"
+    for key in PROXY_KEYS:
+        if metrics.get(key) is not None:
+            label = {"iou": "IoU", "changed_ha": "ha"}.get(key, "clear water %")
+            return f"{label} {show(metrics[key])}"
+    return "–"
+
+
+def compare(cases) -> bool:
+    if not snapshot_file().exists():
+        raise SystemExit("No baseline yet. Run `snapshot` first.")
+    frozen = json.loads(snapshot_file().read_text("utf-8"))
+    ok = True
+    print(
+        f"baseline thresholds v{frozen.get('_thresholds_version')} -> now v{THRESHOLDS['version']}"
+    )
+    for case, metrics in collected(cases):
+        before = frozen.get(case["id"])
+        problems = check_case(case, before, metrics)
+        ok &= not problems
+        status = "FAIL " + "; ".join(problems) if problems else "ok"
+        print(
+            f"  {case['id']:18s} {proxy(before):>20s} -> {proxy(metrics):<20s} {status}"
+        )
+    print("PASS" if ok else "FAIL")
+    return ok
+
+
 # ---------------------------------------------------------------- CLI
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=["fetch", "run", "report"])
+    parser.add_argument(
+        "command", choices=["fetch", "run", "report", "snapshot", "compare"]
+    )
     parser.add_argument("--case")
     args = parser.parse_args(argv)
     cases = load_cases(args.case)
+    if args.command == "snapshot":
+        frozen = snapshot(load_cases())
+        print("froze", len(frozen) - 1, "cases to", snapshot_file())
+        return
+    if args.command == "compare":
+        raise SystemExit(0 if compare(load_cases()) else 1)
     if args.command == "report":
         report(load_cases())
         print("wrote", out_dir() / "report.html", "and", BASELINE_DOC)

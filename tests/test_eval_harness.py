@@ -272,3 +272,43 @@ def test_object_recall_merges_touching_polygons_and_skips_specks():
         found, [left, right, speck], np.ones_like(left), min_object_px=50
     )
     assert scores["reference_objects"] == 1 and scores["object_recall"] == 1
+
+
+def test_compare_flags_iou_drops_beyond_two_points():
+    case = {"id": "x"}
+    assert harness.check_case(case, {"iou": 0.60}, {"iou": 0.59}) == []
+    assert harness.check_case(case, {"iou": 0.60}, {"iou": 0.57})
+
+
+def test_compare_guards():
+    case = {
+        "id": "x",
+        "guards": {
+            "min_ha": 150,
+            "max_patches": 12,
+            "ha_within_pct": 2,
+            "no_drop": ["clear_water_change_detected_pct"],
+            "keep_cover_ha": {"Bare or sparse vegetation": 2},
+        },
+    }
+    before = {
+        "changed_ha": 154.0,
+        "n_patches": 10,
+        "clear_water_change_detected_pct": 90.0,
+        "ha_by_cover": {"Bare or sparse vegetation": 100.0, "Built-up": 20.0},
+    }
+    assert harness.check_case(case, before, dict(before)) == []
+    fewer_roofs = dict(
+        before, ha_by_cover={"Bare or sparse vegetation": 99.0, "Built-up": 5.0}
+    )
+    assert harness.check_case(case, before, fewer_roofs) == []
+    broken = dict(
+        before,
+        changed_ha=140.0,
+        n_patches=15,
+        clear_water_change_detected_pct=80.0,
+        ha_by_cover={"Bare or sparse vegetation": 90.0},
+    )
+    problems = " ".join(harness.check_case(case, before, broken))
+    for word in ("min 150", "max 12", "moved", "clear_water", "Bare or sparse"):
+        assert word in problems

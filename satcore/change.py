@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 import numpy as np
 from rasterio.features import shapes
 from scipy.ndimage import (
@@ -69,7 +71,7 @@ def detect(
     district is outlined in full instead of only its most obvious pixels,
     while isolated weak signals elsewhere are ignored.
     """
-    seed, grow, max_hole_ha = candidates(
+    found = candidates(
         a,
         b,
         valid,
@@ -78,8 +80,27 @@ def detect(
         model_score=model_score,
         scl=scl,
     )
-    change = grow_from_seeds(seed, grow)
-    return clean(change, valid, pixel_ha, max_hole_ha)
+    return patches(found, valid, pixel_ha)
+
+
+class Candidates(NamedTuple):
+    """Per-pixel detection inputs for one analysis type.
+
+    seed/grow: strict and loose rule masks (inside `valid`); signal: the change
+    strength the rules threshold (positive in the direction of the change asked
+    for); max_hole_ha: hole-fill limit for this type, or None for the default.
+    """
+
+    seed: np.ndarray
+    grow: np.ndarray
+    signal: np.ndarray
+    max_hole_ha: float | None = None
+
+
+def patches(found: Candidates, valid: np.ndarray, pixel_ha: float) -> np.ndarray:
+    """Grow the seeds over connected grow pixels, then clean into labelled patches."""
+    change = grow_from_seeds(found.seed, found.grow)
+    return clean(change, valid, pixel_ha, found.max_hole_ha)
 
 
 def candidates(
@@ -92,7 +113,7 @@ def candidates(
     model_score: np.ndarray | None = None,
     scl: tuple[np.ndarray, np.ndarray] | None = None,
 ):
-    """Seed and grow masks (restricted to `valid`) and the hole-fill limit."""
+    """Seed and grow masks (restricted to `valid`), change signal and hole limit."""
     max_hole_ha = None
     if intent == "visible_change":
         if model_score is None:
@@ -102,19 +123,23 @@ def candidates(
         grow = model_score >= settings.get(
             "grow_score_min", settings["model_score_min"]
         )
+        signal = model_score
     elif intent.startswith("water"):
-        seed, grow = water_change(a, b, intent, scl)
+        seed, grow, signal = water_change(a, b, intent, scl)
     elif intent in ("veg_loss", "veg_gain"):
-        seed, grow = vegetation_change(a, b, intent)
+        seed, grow, signal = vegetation_change(a, b, intent)
     elif intent == "urban_growth":
         if reflectance is None:
             seed = grow = urban_rules(a, b, valid, None, model_score)
+            signal = finite(b["ndbi"]) - finite(a["ndbi"])
         else:
-            seed, grow = urban_evidence(*reflectance, a, b, valid, model_score)
+            seed, grow, signal = urban_evidence(*reflectance, a, b, valid, model_score)
             max_hole_ha = T[intent]["evidence"]["max_hole_ha"]
     else:
-        seed, grow = burn_change(a, b)
-    return seed & valid, grow & valid, max_hole_ha
+        seed, grow, signal = burn_change(a, b)
+    return Candidates(
+        seed & valid, grow & valid, finite(signal).astype(np.float32), max_hole_ha
+    )
 
 
 def finite(values: np.ndarray, fill: float = 0.0) -> np.ndarray:
@@ -150,7 +175,7 @@ def water_change(a, b, intent, scl):
         & (finite(wet, -1) > settings["grow_index"])
         & (shift >= settings["grow_delta"])
     )
-    return seed, grow
+    return seed, grow, shift
 
 
 def vegetation_change(a, b, intent):
@@ -167,7 +192,7 @@ def vegetation_change(a, b, intent):
         grow = (ndvi_b > settings["grow_ndvi_after_min"]) & (
             delta > settings["grow_delta_min"]
         )
-    return seed, grow
+    return seed, grow, (-delta if intent == "veg_loss" else delta)
 
 
 def burn_change(a, b):
@@ -178,7 +203,7 @@ def burn_change(a, b):
     # seeds stops moisture or shadow changes from looking like burn scars.
     seed = (dnbr > settings["dnbr_min"]) & (ndvi_drop > settings["ndvi_drop_min"])
     grow = dnbr > settings["grow_dnbr_min"]
-    return seed, grow
+    return seed, grow, dnbr
 
 
 def urban_rules(a, b, valid, reflectance, model_score):
@@ -272,7 +297,7 @@ def urban_evidence(before, after, a, b, valid, model_score=None):
         & (edge_change > settings["grow_change"])
         & (edge_built > settings["grow_built"])
     )
-    return seed, grow
+    return seed, grow, edge_change
 
 
 def water_index(indices: dict) -> np.ndarray:
@@ -336,9 +361,26 @@ def clean(
     return np.where(keep[labels], labels, 0).astype(np.int32)
 
 
-def polygons(labels: np.ndarray, edge: np.ndarray, grid: Grid, intent: Intent):
+def polygons(
+    labels: np.ndarray,
+    edge: np.ndarray,
+    grid: Grid,
+    intent: Intent,
+    found: Candidates | None = None,
+):
+    """Patch outlines in WGS84 with per-patch evidence.
+
+    With `found`, each patch also reports seed_share (share of its pixels that
+    passed the strict seed rule), mean_score (mean change signal) and weak
+    (seed_share below cleanup.weak_seed_share: mostly grown from weak signal).
+    """
     counts = np.bincount(labels.ravel())
     edges = np.bincount(labels[edge], minlength=len(counts))
+    if found is not None:
+        seeds = np.bincount(labels[found.seed], minlength=len(counts))
+        sums = np.bincount(
+            labels.ravel(), weights=found.signal.ravel(), minlength=len(counts)
+        )
     result = []
     to_lonlat = project(grid.crs_epsg, 4326)
     pixel_ha = grid.resolution**2 / 10_000
@@ -347,15 +389,23 @@ def polygons(labels: np.ndarray, edge: np.ndarray, grid: Grid, intent: Intent):
         polygon = shape(geometry).simplify(
             T["cleanup"]["simplify_m"], preserve_topology=True
         )
+        properties = {
+            "kind": intent,
+            "ha": round(counts[idx] * pixel_ha, 2),
+            "artefact": bool(edges[idx] > counts[idx] / 2),
+        }
+        if found is not None:
+            share = float(seeds[idx] / counts[idx])
+            properties.update(
+                seed_share=round(share, 3),
+                mean_score=round(float(sums[idx] / counts[idx]), 3),
+                weak=share < T["cleanup"]["weak_seed_share"],
+            )
         result.append(
             {
                 "type": "Feature",
                 "geometry": mapping(transform(to_lonlat, polygon)),
-                "properties": {
-                    "kind": intent,
-                    "ha": round(counts[idx] * pixel_ha, 2),
-                    "artefact": bool(edges[idx] > counts[idx] / 2),
-                },
+                "properties": properties,
             }
         )
     return {"type": "FeatureCollection", "features": result}

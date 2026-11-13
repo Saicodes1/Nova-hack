@@ -3,6 +3,8 @@
 # reference: optional GeoJSON of true-change polygons (scored only if the file exists).
 # item_a / item_b: pinned scene IDs, so `fetch` always evaluates the same scenes.
 # reference_source: official | crowd-mapped | hand-drawn (required with a reference).
+# guards: checks used by `eval_patches compare` where there is no reference (IoU drops > 2 points
+#   always fail): min_ha, max_patches, ha_within_pct, no_drop [metrics], keep_cover_ha {class: max % drop}.
 # catalog: earth-search (default) or planetary-computer, for the pinned scenes.
 # To try new dates, remove the pins: fetch then uses the app's own scene selection.
 cases:
@@ -15,6 +17,7 @@ cases:
     item_b: [S2B_T40RCN_20261108T070105_L2A]
     reference: config/eval_refs/dubai_villas.geojson
     reference_source: hand-drawn
+    guards: {min_ha: 150, max_patches: 12}  # hard rule 7: no regression of the district
     note: >-
       New villa district. Baseline at thresholds v5 is 154.31 ha in 10 patches.
 
@@ -27,6 +30,7 @@ cases:
     item_b: [S2B_T40RBN_20240422T065245_L2A, S2B_T40RCN_20240422T065245_L2A]
     reference: config/eval_refs/dubai_storm.geojson
     reference_source: hand-drawn
+    guards: {keep_cover_ha: {Bare or sparse vegetation: 2}}  # flood on open ground must hold
     note: >-
       16 April 2024 storm: standing water in the first clear scene after it.
 
@@ -38,6 +42,7 @@ cases:
     catalog: planetary-computer
     item_a: [S2A_MSIL2A_20200704T181931_R127_T11SPA_20200825T043224]
     item_b: [S2A_MSIL2A_20220704T181931_R127_T11SPA_20220706T203456]
+    guards: {no_drop: [clear_water_change_detected_pct]}
     note: >-
       Receding shoreline, summer 2020 to summer 2022. Earth Search has no July 2022 scenes here.
 
@@ -71,6 +76,7 @@ cases:
     catalog: planetary-computer
     item_a: [S2A_MSIL2A_20190213T083041_R021_T36QUL_20201007T162222]
     item_b: [S2B_MSIL2A_20240209T082019_R121_T36QUL_20240209T121836]
+    guards: {ha_within_pct: 2}  # visually near-perfect; must not move
     note: >-
       New centre-pivot irrigation: bare sand in Feb 2019, full and half-planted pivots in Feb 2024. Earth Search is missing 2019 tiles here.
 

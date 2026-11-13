@@ -13,6 +13,8 @@ const formatDate = (value?:string) => value ? new Date(value.slice(0,10)+'T12:00
 const styleUrl = 'https://tiles.openfreemap.org/styles/dark';
 const fallbackColor='#22d3ee';
 const artefactColor='#9aa4b2';
+const isWeak:maplibregl.ExpressionSpecification=['==',['get','weak'],true];
+const fillOpacity=(opacity:number):maplibregl.ExpressionSpecification=>['case',isWeak,opacity/2,opacity];
 
 function patchLayers(map:MapLibre, after:boolean) {
   if (map.getSource('detected')) return;
@@ -20,12 +22,18 @@ function patchLayers(map:MapLibre, after:boolean) {
   map.addSource('selected',{type:'geojson',data:empty});
   const color:maplibregl.ExpressionSpecification=['case',['==',['get','artefact'],true],artefactColor,fallbackColor];
   map.addLayer({id:'detected-hit',source:'detected',type:'fill',
-    paint:{'fill-color':color,'fill-opacity':after ? .4 : 0}});
+    paint:{'fill-color':color,'fill-opacity':after ? fillOpacity(.4) : 0}});
   map.addLayer({id:'detected-casing',source:'detected',type:'line',
     paint:{'line-color':'#05090f','line-width':after ? 3.5 : 3,'line-opacity':.85}});
+  // Before side: every outline dashed. After side: solid, except weak patches
+  // (mostly grown from faint signal), which get a dotted outline. Dash patterns
+  // cannot vary per feature, so weak patches have their own layer.
   map.addLayer({id:'detected-outline',source:'detected',type:'line',
+    ...(after ? {filter:['!',isWeak]} : {}),
     paint:{'line-color':color,'line-width':after ? 1.8 : 1.5,
       ...(after ? {} : {'line-dasharray':[2,1.5]})}});
+  if (after) map.addLayer({id:'detected-weak',source:'detected',type:'line',filter:isWeak,
+    layout:{'line-cap':'round'},paint:{'line-color':color,'line-width':2,'line-dasharray':[0.1,2]}});
   map.addLayer({id:'selected-line',source:'selected',type:'line',
     paint:{'line-color':'#ffffff','line-width':3}});
 }
@@ -34,8 +42,9 @@ function stylePatches(map:MapLibre, after:boolean, color:string, opacity:number)
   if (!map.getLayer('detected-hit')) return;
   const paint:maplibregl.ExpressionSpecification=['case',['==',['get','artefact'],true],artefactColor,color];
   map.setPaintProperty('detected-hit','fill-color',paint);
-  map.setPaintProperty('detected-hit','fill-opacity',after ? opacity : 0);
+  map.setPaintProperty('detected-hit','fill-opacity',after ? fillOpacity(opacity) : 0);
   map.setPaintProperty('detected-outline','line-color',paint);
+  if (map.getLayer('detected-weak')) map.setPaintProperty('detected-weak','line-color',paint);
 }
 
 type Draw = 'box'|'polygon'|null;
@@ -62,6 +71,7 @@ export default function MapPanel({trackData}:{trackData:Tracks|null}) {
   const polygonData=packet?.change_geojson ?? rendered?.change_geojson;
   const patchCount=polygonData?.features.length ?? 0;
   const hasArtefacts=polygonData?.features.some(feature=>feature.properties?.artefact);
+  const hasWeak=polygonData?.features.some(feature=>feature.properties?.weak);
   const comparison=Boolean(bounds?.length && station.currentId);
   const previewId=packet ? station.currentId : rendered?.artifact_id ?? station.currentId;
   const preview = previewId ? '/api/analyses/'+previewId+'/images/' : '';
@@ -129,7 +139,8 @@ export default function MapPanel({trackData}:{trackData:Tracks|null}) {
         const info=item.properties;
         const side=event.point.x / a.getContainer().clientWidth * 100 < station.swipe ? 'Before' : 'After';
         new Popup().setLngLat(event.lngLat).setText(
-          side+' view · '+number(info.ha,2)+' ha patch'+(info.artefact?' · possible cloud-edge artefact':'')).addTo(a);
+          side+' view · '+number(info.ha,2)+' ha patch'+(info.artefact?' · possible cloud-edge artefact':'')+
+          (info.seed_share!=null?' · '+number(info.seed_share*100,0)+'% strong-signal pixels'+(info.weak?' · weak':''):'')).addTo(a);
         const features=latest.current.station.result?.packet.change_geojson?.features ?? [];
         const index=features.findIndex(f=>JSON.stringify(f.geometry)===JSON.stringify(item.geometry));
         if (index>=0) latest.current.station.set({selectedPatch:index});
@@ -294,6 +305,7 @@ export default function MapPanel({trackData}:{trackData:Tracks|null}) {
         <span><i className="patch-key filled" style={{borderColor:color,background:color+'66'}}/> After · detected area</span>
         {!canvasError&&<span><i className="patch-key dashed" style={{borderColor:color}}/> Before · same outline</span>}
         {hasArtefacts&&<span><i className="patch-key uncertain"/> Possible cloud-edge artefact</span>}
+        {hasWeak&&<span><i className="patch-key dotted" style={{borderColor:color,background:color+'33'}}/> Weak · mostly faint signal</span>}
         <label className="opacity-control">Fill
           <input type="range" min="0" max="0.8" step="0.05" value={station.patchOpacity}
             onChange={e=>station.set({patchOpacity:+e.target.value})} aria-label="Patch fill opacity"/></label>

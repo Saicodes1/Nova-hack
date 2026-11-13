@@ -87,13 +87,15 @@ def _evidence(a, b, model_score):
 
 
 def detect_patches(ia, ib, a, b, detectable, grid, intent, model_score=None):
-    """Labelled patches, the cloud-edge zone and the patch polygons."""
+    """Labelled patches, cloud-edge zone, patch polygons and the seed pixels."""
     edge = masks.cloud_edge(a["scl"], b["scl"], cloud_buffer_px() + 2)
     pixel_ha = grid.resolution**2 / 10_000
-    labels = change.detect(
-        ia, ib, detectable, intent, pixel_ha, **_evidence(a, b, model_score)
+    found = change.candidates(
+        ia, ib, detectable, intent, **_evidence(a, b, model_score)
     )
-    return labels, edge, change.polygons(labels, edge, grid, intent)
+    labels = change.patches(found, detectable, pixel_ha)
+    geojson = change.polygons(labels, edge, grid, intent, found)
+    return labels, edge, geojson, found.seed
 
 
 def change_stats(labels, valid, edge, geojson, overlap, aoi, grid, cover=None):
@@ -111,14 +113,6 @@ def change_stats(labels, valid, edge, geojson, overlap, aoi, grid, cover=None):
         from_to=landcover.breakdown(mask, cover, pixel_ha),
         artefact_ha=round((mask & edge).sum() * pixel_ha, 2),
     )
-
-
-def seed_mask(ia, ib, a, b, detectable, intent, model_score=None):
-    """The strict seed pixels behind detect_patches (for evaluation and display)."""
-    seed, _, _ = change.candidates(
-        ia, ib, detectable, intent, **_evidence(a, b, model_score)
-    )
-    return seed
 
 
 def run_analysis(
@@ -198,7 +192,7 @@ def run_analysis(
                         if model_score is not None
                         else "Built-up evidence"
                     )
-                labels, edge, geojson = detect_patches(
+                labels, edge, geojson, _ = detect_patches(
                     ia, ib, a, b, detectable, grid, cmd.intent, model_score
                 )
             with stage("landcover"):

@@ -176,3 +176,30 @@ def test_new_district_is_covered_and_plain_colour_change_is_not():
     assert np.count_nonzero(found & district) / district.sum() > 0.95
     assert iou(found, district) > 0.8
     assert not found[plain].any()
+
+
+def test_patches_report_seed_share_mean_score_and_weak():
+    from satcore.change import Candidates, patches, polygons
+    from satcore.models import Grid
+
+    grid = Grid(
+        crs_epsg=32640, bounds=(300000, 2780000, 300400, 2780400), width=40, height=40
+    )
+    valid = np.ones((40, 40), bool)
+    grow = np.zeros_like(valid)
+    grow[2:12, 2:12] = True  # strong patch: mostly seeds
+    grow[20:35, 20:35] = True  # weak patch: one seed row, grown over the rest
+    seed = np.zeros_like(valid)
+    seed[2:12, 2:10] = True
+    seed[20, 20:35] = True
+    signal = np.where(seed, 0.5, np.where(grow, 0.1, 0)).astype(np.float32)
+    found = Candidates(seed, grow, signal)
+    labels = patches(found, valid, pixel_ha=0.01)
+    features = polygons(labels, np.zeros_like(valid), grid, "water_gain", found)[
+        "features"
+    ]
+    props = sorted((f["properties"] for f in features), key=lambda p: p["ha"])
+    strong, weak = props
+    assert strong["seed_share"] == 0.8 and not strong["weak"]
+    assert weak["seed_share"] < 0.2 and weak["weak"]
+    assert strong["mean_score"] > weak["mean_score"] > 0
