@@ -1,0 +1,404 @@
+{
+ "demo_ok": [
+  {
+   "stage": "scene_select_a",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "scene_select_a",
+   "status": "done",
+   "detail": {
+    "scene_ids": [
+     "DEMO-DUBAI_FLOOD-A"
+    ]
+   }
+  },
+  {
+   "stage": "scene_select_b",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "scene_select_b",
+   "status": "done",
+   "detail": {
+    "scene_ids": [
+     "DEMO-DUBAI_FLOOD-B"
+    ]
+   }
+  },
+  {
+   "stage": "load",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "load",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "cloud_check",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "cloud_check",
+   "status": "done",
+   "detail": {
+    "valid_overlap_pct": 96.8
+   }
+  },
+  {
+   "stage": "indices",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "indices",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "change",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "change",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "landcover",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "landcover",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "trust",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "trust",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "render",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "render",
+   "status": "done",
+   "detail": {
+    "image_bounds": [
+     [
+      55.19491878542627,
+      24.952324164008328
+     ],
+     [
+      55.24452404894651,
+      24.95291716371026
+     ],
+     [
+      55.2451646678672,
+      24.90769229231135
+     ],
+     [
+      55.19557748298103,
+      24.907100511096623
+     ]
+    ]
+   }
+  },
+  {
+   "stage": "verdict",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "verdict",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "packet",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "packet",
+   "status": "done",
+   "detail": {}
+  }
+ ],
+ "demo_refused": [
+  {
+   "stage": "scene_select_a",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "scene_select_a",
+   "status": "done",
+   "detail": {
+    "scene_ids": [
+     "DEMO-DUBAI_CLOUDY-A"
+    ]
+   }
+  },
+  {
+   "stage": "scene_select_b",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "scene_select_b",
+   "status": "done",
+   "detail": {
+    "scene_ids": [
+     "DEMO-DUBAI_CLOUDY-B"
+    ]
+   }
+  },
+  {
+   "stage": "load",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "load",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "cloud_check",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "cloud_check",
+   "status": "done",
+   "detail": {
+    "valid_overlap_pct": 22.9
+   }
+  },
+  {
+   "stage": "cloud_check",
+   "status": "refused",
+   "detail": {
+    "valid_overlap_pct": 22.9
+   }
+  },
+  {
+   "stage": "trust",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "trust",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "render",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "render",
+   "status": "done",
+   "detail": {
+    "image_bounds": [
+     [
+      55.19491878542627,
+      24.952324164008328
+     ],
+     [
+      55.24452404894651,
+      24.95291716371026
+     ],
+     [
+      55.2451646678672,
+      24.90769229231135
+     ],
+     [
+      55.19557748298103,
+      24.907100511096623
+     ]
+    ]
+   }
+  },
+  {
+   "stage": "verdict",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "verdict",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "packet",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "packet",
+   "status": "done",
+   "detail": {}
+  }
+ ],
+ "live_urban": [
+  {
+   "stage": "scene_select_a",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "scene_select_a",
+   "status": "done",
+   "detail": {
+    "scene_ids": [
+     "LIVE-A"
+    ]
+   }
+  },
+  {
+   "stage": "scene_select_b",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "scene_select_b",
+   "status": "done",
+   "detail": {
+    "scene_ids": [
+     "LIVE-B"
+    ]
+   }
+  },
+  {
+   "stage": "load",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "load",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "cloud_check",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "cloud_check",
+   "status": "done",
+   "detail": {
+    "valid_overlap_pct": 96.8
+   }
+  },
+  {
+   "stage": "indices",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "indices",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "change",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "change",
+   "status": "done",
+   "detail": {
+    "detector": "Built-up evidence"
+   }
+  },
+  {
+   "stage": "landcover",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "landcover",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "trust",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "trust",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "render",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "render",
+   "status": "done",
+   "detail": {
+    "image_bounds": [
+     [
+      55.14485625312553,
+      24.98231408344837
+     ],
+     [
+      55.19447217218485,
+      24.982924434852748
+     ],
+     [
+      55.195131952415046,
+      24.937700978697624
+     ],
+     [
+      55.145534139125196,
+      24.93709188028145
+     ]
+    ]
+   }
+  },
+  {
+   "stage": "verdict",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "verdict",
+   "status": "done",
+   "detail": {}
+  },
+  {
+   "stage": "packet",
+   "status": "started",
+   "detail": {}
+  },
+  {
+   "stage": "packet",
+   "status": "done",
+   "detail": {}
+  }
+ ]
+}

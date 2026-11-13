@@ -188,6 +188,10 @@ Goal: a clean, explainable screen that a judge understands in 10 seconds.
    - Show a one-line "How we know": "Seeds: N px with strong signal · grown over connected pixels with
      weaker signal · 30 m cloud buffer".
    - Link "See evidence" to the Evidence tab.
+   - When a scene used is more than 7 days from the requested date, say so in one line, e.g.
+     "After image is from 7 May, 21 days after the date you asked for." (Found in Phase 1: when the
+     requested window has no clear scene, selection widens to 30 days and can land weeks after an
+     event, such as the April 2024 Dubai storm. The selection logic stays as is.)
 3. **Evidence tab:**
    - Add a compact "Signals" panel per analysis type, e.g. urban: colour change, texture change,
      built-up look, as median values inside the patches vs the rest of the area (from the packet; add these numbers to the packet).

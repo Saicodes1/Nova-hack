@@ -42,7 +42,12 @@ make check    # pytest, ruff, web build: must pass before every commit
 make dev      # build web, run ground station on http://127.0.0.1:8000
 make flight   # run the HTTP node on :8100 (then NODE_MODE=remote NODE_URL=http://127.0.0.1:8100)
 make test-live  # tests that need public data services
+python -m scripts.eval_patches fetch|run|report [--case ID]  # accuracy harness (run/report offline)
 ```
+
+Accuracy cases: `config/eval_cases.yaml` (pinned scenes), AOIs in `config/eval_aois/`, hand-drawn
+references in `config/eval_refs/`. Outputs go to `var/eval/` (`report.html`); the committed
+summary is `docs/eval_baseline.md`. Re-run all cases after any detection change.
 
 `run_local.command` builds the web app and starts the server, logging to `var/logs/`.
 Configuration comes from `.env` (copy `.env.example`); OpenAI is optional when the AOI, dates and

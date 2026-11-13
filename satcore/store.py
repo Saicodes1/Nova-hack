@@ -10,11 +10,15 @@ from .models import Grid
 from .stac import Selection
 
 
-def load_scene(selection: Selection, grid: Grid):
-    scene = selection.scene
-    identity = "|".join([*scene.item_ids, grid.model_dump_json()])
+def scene_file(selection: Selection, grid: Grid):
+    """Cache file for a scene's bands cropped to `grid`."""
+    identity = "|".join([*selection.scene.item_ids, grid.model_dump_json()])
     key = hashlib.sha256(identity.encode()).hexdigest()
-    file = data_path("SCENE_STORE", "var/scenes") / f"{key}.npz"
+    return data_path("SCENE_STORE", "var/scenes") / f"{key}.npz"
+
+
+def load_scene(selection: Selection, grid: Grid):
+    file = scene_file(selection, grid)
     if file.exists():
         with np.load(file, allow_pickle=False) as stored:
             return {name: stored[name] for name in stored.files}

@@ -1,0 +1,87 @@
+# Evaluation cases for scripts/eval_patches.py.
+# aoi: path to a GeoJSON polygon (open it in geojson.io to draw references on top).
+# reference: optional GeoJSON of true-change polygons (scored only if the file exists).
+# item_a / item_b: pinned scene IDs, so `fetch` always evaluates the same scenes.
+# reference_source: official | crowd-mapped | hand-drawn (required with a reference).
+# catalog: earth-search (default) or planetary-computer, for the pinned scenes.
+# To try new dates, remove the pins: fetch then uses the app's own scene selection.
+cases:
+  - id: dubai_villas
+    intent: urban_growth
+    aoi: config/eval_aois/dubai_villas.geojson
+    date_a: 2019-07-08
+    date_b: 2026-11-08
+    item_a: [S2B_T40RCN_20190708T065440_L2A]
+    item_b: [S2B_T40RCN_20261108T070105_L2A]
+    reference: config/eval_refs/dubai_villas.geojson
+    reference_source: hand-drawn
+    note: >-
+      New villa district. Baseline at thresholds v5 is 154.31 ha in 10 patches.
+
+  - id: dubai_storm
+    intent: water_gain
+    aoi: config/eval_aois/dubai_storm.geojson
+    date_a: 2024-03-28
+    date_b: 2024-04-22
+    item_a: [S2A_T40RBN_20240328T065608_L2A, S2A_T40RCN_20240328T065608_L2A]
+    item_b: [S2B_T40RBN_20240422T065245_L2A, S2B_T40RCN_20240422T065245_L2A]
+    reference: config/eval_refs/dubai_storm.geojson
+    reference_source: hand-drawn
+    note: >-
+      16 April 2024 storm: standing water in the first clear scene after it.
+
+  - id: lake_mead
+    intent: water_loss
+    aoi: config/eval_aois/lake_mead.geojson
+    date_a: 2020-07-04
+    date_b: 2022-07-04
+    catalog: planetary-computer
+    item_a: [S2A_MSIL2A_20200704T181931_R127_T11SPA_20200825T043224]
+    item_b: [S2A_MSIL2A_20220704T181931_R127_T11SPA_20220706T203456]
+    note: >-
+      Receding shoreline, summer 2020 to summer 2022. Earth Search has no July 2022 scenes here.
+
+  - id: rondonia
+    intent: veg_loss
+    aoi: config/eval_aois/rondonia.geojson
+    date_a: 2019-08-02
+    date_b: 2024-07-31
+    item_a: [S2B_T20LLQ_20190802T144505_L2A, S2B_T20LLR_20190802T144505_L2A]
+    item_b: [S2A_T20LLQ_20240731T143745_L2A, S2A_T20LLR_20240731T143745_L2A]
+    reference: config/eval_refs/rondonia.geojson
+    reference_source: official
+    note: >-
+      Intact forest in 2019, large new clearings by 2024, same dry season.
+
+  - id: rondonia_seasonal
+    intent: veg_loss
+    aoi: config/eval_aois/rondonia_seasonal.geojson
+    date_a: 2019-07-30
+    date_b: 2024-07-31
+    item_a: [S2B_T20LLQ_20190730T142800_L2A]
+    item_b: [S2A_T20LLQ_20240731T143745_L2A]
+    note: >-
+      Phase 3 test: pasture green in 2019 and dry in 2024. Dried pasture should NOT count as vegetation loss once season-aware comparison exists. Expected answer: little or no loss. No reference polygons.
+
+  - id: farm_greening
+    intent: veg_gain
+    aoi: config/eval_aois/farm_greening.geojson
+    date_a: 2019-02-13
+    date_b: 2024-02-09
+    catalog: planetary-computer
+    item_a: [S2A_MSIL2A_20190213T083041_R021_T36QUL_20201007T162222]
+    item_b: [S2B_MSIL2A_20240209T082019_R121_T36QUL_20240209T121836]
+    note: >-
+      New centre-pivot irrigation: bare sand in Feb 2019, full and half-planted pivots in Feb 2024. Earth Search is missing 2019 tiles here.
+
+  - id: palisades_fire
+    intent: burn
+    aoi: config/eval_aois/palisades_fire.geojson
+    date_a: 2025-01-02
+    date_b: 2025-01-12
+    item_a: [S2A_T11SLT_20250102T183754_L2A]
+    item_b: [S2A_T11SLT_20250112T183727_L2A]
+    reference: config/eval_refs/palisades_fire.geojson
+    reference_source: official
+    note: >-
+      Palisades fire, started 7 January 2025.

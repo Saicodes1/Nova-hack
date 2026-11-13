@@ -21,6 +21,106 @@ class VerdictWriter(Protocol):
     def write(self, packet: AnswerPacket) -> str: ...
 
 
+# Bands each analysis type needs in both dates for a pixel to count as clear.
+REQUIRED_BANDS = {
+    "water_gain": ("green", "nir", "swir16"),
+    "water_loss": ("green", "nir", "swir16"),
+    "veg_gain": ("nir", "red"),
+    "veg_loss": ("nir", "red"),
+    "urban_growth": ("red", "nir", "swir16"),
+    "visible_change": ("red", "green", "blue"),
+    "burn": ("nir", "swir22"),
+}
+
+
+def cloud_buffer_px() -> int:
+    return THRESHOLDS["cleanup"].get("cloud_buffer_px", 0)
+
+
+def clear_masks(a: dict, b: dict, inside: np.ndarray, intent: str):
+    """Clear pixels in both dates, the subset used for detection, and overlap %.
+
+    `valid` is clear coverage (counts toward overlap and the changed share);
+    `detectable` also skips a fringe around clouds and their shadows.
+    """
+    water_intent = intent.startswith("water")
+    valid = (
+        inside
+        & masks.valid_mask(a["scl"], exclude_dark=water_intent)
+        & masks.valid_mask(b["scl"], exclude_dark=water_intent)
+    )
+    for layers in (a, b):
+        if water_intent:
+            valid &= np.isfinite(layers["green"]) & (
+                np.isfinite(layers["nir"]) | np.isfinite(layers["swir16"])
+            )
+        else:
+            for band in REQUIRED_BANDS[intent]:
+                valid &= np.isfinite(layers[band])
+    overlap = round(100 * valid.sum() / max(1, inside.sum()), 1)
+    detectable = valid & ~masks.near_clouds(a["scl"], b["scl"], cloud_buffer_px())
+    return valid, detectable, overlap
+
+
+def uses_model(intent: str, demo_id: str | None) -> bool:
+    return intent in {"urban_growth", "visible_change"} and not demo_id
+
+
+def model_scores(a: dict, b: dict, valid: np.ndarray, intent: str):
+    """FresUNet change probability, or None when the model is unavailable."""
+    try:
+        return urban_model.predict(a, b, valid)
+    except Exception:
+        if intent == "visible_change":
+            raise
+        logger.exception("FresUNet inference failed; using the urban rules.")
+        return None
+
+
+def _evidence(a, b, model_score):
+    """Keyword arguments shared by change.detect and change.candidates."""
+    return {
+        "reflectance": (a, b),
+        "model_score": model_score,
+        "scl": (a["scl"], b["scl"]),
+    }
+
+
+def detect_patches(ia, ib, a, b, detectable, grid, intent, model_score=None):
+    """Labelled patches, the cloud-edge zone and the patch polygons."""
+    edge = masks.cloud_edge(a["scl"], b["scl"], cloud_buffer_px() + 2)
+    pixel_ha = grid.resolution**2 / 10_000
+    labels = change.detect(
+        ia, ib, detectable, intent, pixel_ha, **_evidence(a, b, model_score)
+    )
+    return labels, edge, change.polygons(labels, edge, grid, intent)
+
+
+def change_stats(labels, valid, edge, geojson, overlap, aoi, grid, cover=None):
+    """Packet statistics for the detected patches."""
+    mask = labels > 0
+    pixel_ha = grid.resolution**2 / 10_000
+    areas = [feature["properties"]["ha"] for feature in geojson["features"]]
+    return ChangeStats(
+        changed_ha=round(mask.sum() * pixel_ha, 2),
+        changed_pct=round(100 * mask.sum() / valid.sum(), 1),
+        valid_overlap_pct=overlap,
+        aoi_ha=round(validate_aoi(aoi) * 100, 2),
+        n_polygons=len(areas),
+        largest_polygon_ha=max(areas, default=0),
+        from_to=landcover.breakdown(mask, cover, pixel_ha),
+        artefact_ha=round((mask & edge).sum() * pixel_ha, 2),
+    )
+
+
+def seed_mask(ia, ib, a, b, detectable, intent, model_score=None):
+    """The strict seed pixels behind detect_patches (for evaluation and display)."""
+    seed, _, _ = change.candidates(
+        ia, ib, detectable, intent, **_evidence(a, b, model_score)
+    )
+    return seed
+
+
 def run_analysis(
     cmd: UplinkCommand, emit: Emit, verdict: VerdictWriter
 ) -> AnswerPacket:
@@ -71,34 +171,8 @@ def run_analysis(
         with stage("cloud_check") as detail:
             for scene, layers in zip(scenes, (a, b), strict=True):
                 scene.aoi_cloud_pct = masks.aoi_cloud_pct(layers["scl"], inside)
-            water_intent = cmd.intent.startswith("water")
-            valid = (
-                inside
-                & masks.valid_mask(a["scl"], exclude_dark=water_intent)
-                & masks.valid_mask(b["scl"], exclude_dark=water_intent)
-            )
-            required = {
-                "water_gain": ("green", "nir", "swir16"),
-                "water_loss": ("green", "nir", "swir16"),
-                "veg_gain": ("nir", "red"),
-                "veg_loss": ("nir", "red"),
-                "urban_growth": ("red", "nir", "swir16"),
-                "visible_change": ("red", "green", "blue"),
-                "burn": ("nir", "swir22"),
-            }[cmd.intent]
-            for layers in (a, b):
-                if cmd.intent.startswith("water"):
-                    valid &= np.isfinite(layers["green"]) & (
-                        np.isfinite(layers["nir"]) | np.isfinite(layers["swir16"])
-                    )
-                else:
-                    for band in required:
-                        valid &= np.isfinite(layers[band])
-            overlap = round(100 * valid.sum() / max(1, inside.sum()), 1)
+            valid, detectable, overlap = clear_masks(a, b, inside, cmd.intent)
             detail["valid_overlap_pct"] = overlap
-            buffer_px = THRESHOLDS["cleanup"].get("cloud_buffer_px", 0)
-            # Detection skips a fringe around clouds and their shadows.
-            detectable = valid & ~masks.near_clouds(a["scl"], b["scl"], buffer_px)
         labels = edge = None
         if overlap < THRESHOLDS["trust"]["overlap_low_pct"]:
             emit("cloud_check", "refused", {"valid_overlap_pct": overlap})
@@ -117,35 +191,16 @@ def run_analysis(
                     },
                 )
             with stage("change") as detail:
-                edge = masks.cloud_edge(a["scl"], b["scl"], buffer_px + 2)
-                pixel_ha = grid.resolution**2 / 10_000
-                if cmd.intent in {"urban_growth", "visible_change"} and not cmd.demo_id:
-                    try:
-                        model_score = urban_model.predict(a, b, valid)
-                    except Exception:
-                        if cmd.intent == "visible_change":
-                            raise
-                        logger.exception(
-                            "FresUNet inference failed; using the urban rules."
-                        )
+                if uses_model(cmd.intent, cmd.demo_id):
+                    model_score = model_scores(a, b, valid, cmd.intent)
                     detail["detector"] = (
                         urban_model.MODEL_NAME
                         if model_score is not None
                         else "Built-up evidence"
                     )
-                labels = change.detect(
-                    ia,
-                    ib,
-                    detectable,
-                    cmd.intent,
-                    pixel_ha,
-                    reflectance=(a, b),
-                    model_score=model_score,
-                    scl=(a["scl"], b["scl"]),
+                labels, edge, geojson = detect_patches(
+                    ia, ib, a, b, detectable, grid, cmd.intent, model_score
                 )
-                geojson = change.polygons(labels, edge, grid, cmd.intent)
-                mask = labels > 0
-                areas = [feature["properties"]["ha"] for feature in geojson["features"]]
             with stage("landcover"):
                 cover = None if cmd.demo_id else stac.worldcover(cmd.aoi, grid)
                 if cover is not None and cmd.intent != "visible_change":
@@ -159,15 +214,8 @@ def run_analysis(
                     shifts = np.abs(ia[index][stable] - ib[index][stable])
                     if np.isfinite(shifts).any():
                         haze = float(np.nanmedian(shifts))
-                stats = ChangeStats(
-                    changed_ha=round(mask.sum() * pixel_ha, 2),
-                    changed_pct=round(100 * mask.sum() / valid.sum(), 1),
-                    valid_overlap_pct=overlap,
-                    aoi_ha=round(validate_aoi(cmd.aoi) * 100, 2),
-                    n_polygons=len(areas),
-                    largest_polygon_ha=max(areas, default=0),
-                    from_to=landcover.breakdown(mask, cover, pixel_ha),
-                    artefact_ha=round((mask & edge).sum() * pixel_ha, 2),
+                stats = change_stats(
+                    labels, valid, edge, geojson, overlap, cmd.aoi, grid, cover
                 )
     with stage("trust"):
         status, trust = assess(

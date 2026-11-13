@@ -69,6 +69,30 @@ def detect(
     district is outlined in full instead of only its most obvious pixels,
     while isolated weak signals elsewhere are ignored.
     """
+    seed, grow, max_hole_ha = candidates(
+        a,
+        b,
+        valid,
+        intent,
+        reflectance=reflectance,
+        model_score=model_score,
+        scl=scl,
+    )
+    change = grow_from_seeds(seed, grow)
+    return clean(change, valid, pixel_ha, max_hole_ha)
+
+
+def candidates(
+    a: dict,
+    b: dict,
+    valid: np.ndarray,
+    intent: Intent,
+    *,
+    reflectance=None,
+    model_score: np.ndarray | None = None,
+    scl: tuple[np.ndarray, np.ndarray] | None = None,
+):
+    """Seed and grow masks (restricted to `valid`) and the hole-fill limit."""
     max_hole_ha = None
     if intent == "visible_change":
         if model_score is None:
@@ -90,8 +114,7 @@ def detect(
             max_hole_ha = T[intent]["evidence"]["max_hole_ha"]
     else:
         seed, grow = burn_change(a, b)
-    change = grow_from_seeds(seed & valid, grow & valid)
-    return clean(change, valid, pixel_ha, max_hole_ha)
+    return seed & valid, grow & valid, max_hole_ha
 
 
 def finite(values: np.ndarray, fill: float = 0.0) -> np.ndarray:
