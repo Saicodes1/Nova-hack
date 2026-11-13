@@ -50,7 +50,7 @@ To play the real demos without a network, prepare them once while online (macOS/
 OFFLINE=1 .venv/bin/python -m uvicorn ground.main:app --host 127.0.0.1 --port 8000
 ```
 
-With `OFFLINE=1` the top bar shows "Offline demo", live queries are declined, OpenAI is not called, and explanations come from the cache (run `prep_demo run` with `OPENAI_API_KEY` set to cache model-written ones). The basemap needs internet; the imagery and patches do not. To add a case, give it an AOI and dates, then use `prep_demo list --case ID` to compare candidate scenes and `prep_demo pin --case ID --a ITEM --b ITEM` to pin them.
+With `OFFLINE=1` the top bar shows "Offline demo", live queries are declined and OpenAI is not called. Model-written explanations for each demo (en/ar/hi) are committed in `config/demo_explanations/` and loaded at startup; each is used only when its result key and thresholds version match the current result and it passes the number guard, otherwise the packet template is shown. Re-run `prep_demo run` with `OPENAI_API_KEY` set after any detection change. The basemap needs internet; the imagery and patches do not. To add a case, give it an AOI and dates, then use `prep_demo list --case ID` to compare candidate scenes and `prep_demo pin --case ID --a ITEM --b ITEM` to pin them.
 
 ## How change detection works
 

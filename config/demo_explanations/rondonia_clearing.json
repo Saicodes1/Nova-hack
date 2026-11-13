@@ -1,0 +1,83 @@
+{
+ "demo_id": "rondonia_clearing",
+ "thresholds_version": 8,
+ "cache_key": "db761abad7067789aca0bae2a301f9c6bf30f3c73be690d48c8d9ae9bd2fcfb9",
+ "generated": "2026-11-13T05:48:55+00:00",
+ "explanations": {
+  "en": {
+   "headline": "Significant Vegetation Loss Detected in Rondônia, Brazil Between 2019 and 2024",
+   "body": "Satellite data from Sentinel-2 on 2019-08-02 and 2024-07-31 indicate vegetation loss over approximately 647.23 hectares, corresponding to 28.1% of the 2304.98 hectare study area. The loss primarily involves 358.8 hectares of grassland and 268.43 hectares of tree cover, among minor losses from cropland, permanent water, and shrubland. The affected area is distributed across 26 polygons, with the largest covering about 335.01 hectares. Data quality is assigned a high confidence level with a trust score of 85; however, haze and resolution constraints may impact detection of small features, and a 10-meter analysis grid is used, potentially overlooking finer changes.",
+   "caveats": [
+    "Haze or illumination may cause scene-wide index shifts affecting the assessment.",
+    "The 10 m analysis grid may cause small features of vegetation change to be missed.",
+    "Interpretation relies on satellite indices thresholds that may not capture all change characteristics.",
+    "Overlap of imagery is complete (100%), but some spectral shifts due to atmospheric effects are possible."
+   ],
+   "numbers_used": [
+    647.23,
+    28.1,
+    2304.98,
+    26.0,
+    335.01,
+    358.8,
+    268.43,
+    19.55,
+    0.32,
+    0.1,
+    85.0,
+    10.0,
+    100.0
+   ]
+  },
+  "ar": {
+   "headline": "تحليل فقدان الغطاء النباتي في روندونيا بالبرازيل بين 2019 و2024",
+   "body": "تشير البيانات الفضائية إلى فقدان محتمل للغطاء النباتي على مساحة حوالى 647.23 هكتاراً، ما يمثل نحو 28.1% من مساحة التغطية الصافية البالغة 2304.98 هكتاراً ضمن المنطقة المحددة. التغيرات تتركز في 26 رقعة مع أكبر رقعة بمساحة 335.01 هكتار. فئات الغطاء المتأثرة تشمل العشب (358.8 هكتار)، أشجار الغابات (268.43 هكتار)، المحاصيل الزراعية (19.55 هكتار)، والمسطحات المائية الدائمة (0.32 هكتار). الصور الملتقطة من الأشعة تحت الحمراء قُيّمت بدقة 10 أمتار في تواريخ 2019-08-02 و2024-07-31 بدون تغطية سحابية، وتدل على نمط واضح لتراجع الغطاء النباتي في هذه الفترة. الوثوقية عالية (85 من 100) رغم أن ظروف الإضاءة قد تؤثر على النتيجة بصورة محتملة.",
+   "caveats": [
+    "قد تؤثر الضبابية أو الإضاءة على تغير المؤشرات في الصور الفضائية.",
+    "الدقة التقريبية 10 أمتار قد تفوت العناصر الصغيرة.",
+    "البيانات مشتقة من مشاهدتين في تواريخ محددة قد لا تمثل التغيرات المستمرة طوال الفترة.",
+    "التحليل يقوم على مؤشرات وتغيرات رقمية قد لا تشير بالضرورة إلى تلف حتمي للغطاء النباتي."
+   ],
+   "numbers_used": [
+    647.23,
+    28.1,
+    2304.98,
+    26.0,
+    335.01,
+    358.8,
+    268.43,
+    19.55,
+    0.32,
+    10.0,
+    2019.0802,
+    2024.0731,
+    85.0
+   ]
+  },
+  "hi": {
+   "headline": "रॉन्डोनिया, ब्राज़ील में 2019 से 2024 तक 647.23 हेक्टेयर वनस्पति की कमी का संकेत",
+   "body": "2019-08-02 और 2024-07-31 के बीच सेंटिनल-2 उपग्रह छवियों के आधार पर, रॉन्डोनिया क्षेत्र में लगभग 647.23 हेक्टेयर (कुल क्षेत्रफल का 28.1%) वनस्पति का संभावित क्षरण देखने को मिला। 26 भौगोलिक उपखंडों में ये बदलाव अनुमानित हैं, जिनमें सबसे बड़ा एकल क्षेत्र लगभग 335.01 हेक्टेयर है। पौधों की कमी मुख्य रूप से घासभूमि (358.8 हेक्टेयर) और वृक्ष आवरण (268.43 हेक्टेयर) क्षेत्रों से हुई प्रतीत होती है। क्लाउड कवर नहीं था, लेकिन धुंध या प्रकाश की स्थिति में बदलाव से सूचकांकों की सीमा पर प्रभाव हो सकता है। विश्लेषण के दौरान 10 मीटर के ग्रिड साइज का उपयोग किया गया, जिससे छोटे फीचर्स की जानकारी आंशिक रूप से सीमित रह सकती है।",
+   "caveats": [
+    "हवा में धुंध या प्रकाश में बदलाव के कारण सीन व्यापक सूचकांक में परिवर्तन संभव है।",
+    "सेंटिनल-2 का 10 मीटर ग्रिड विश्लेषण छोटे क्षेत्रीय परिवर्तनों को पूर्णतया पकड़ने में सक्षम नहीं हो सकता।",
+    "परिवर्तन के क्षेत्र में मानव निर्मित या प्राकृतिक गतिविधियाँ शामिल हो सकती हैं, लेकिन उनके कारण की पुष्टि नहीं हुई।"
+   ],
+   "numbers_used": [
+    647.23,
+    28.1,
+    100.0,
+    2304.98,
+    26.0,
+    335.01,
+    358.8,
+    268.43,
+    19.55,
+    0.32,
+    0.1,
+    10.0,
+    2019.08,
+    2024.07
+   ]
+  }
+ }
+}

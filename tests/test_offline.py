@@ -145,3 +145,76 @@ def test_demo_menu_lists_real_cases_first_and_labels_synthetic_ones():
     assert real and entries[0] is real[0]
     assert all(c["item_a"] and c["item_b"] for c in real)
     assert all(c["title"].startswith("Synthetic") for c in entries if c["synthetic"])
+
+
+def committed_setup(monkeypatch, tmp_path, explanation, version=None):
+    from ground import demo_explanations
+    from satcore.config import THRESHOLDS
+
+    monkeypatch.setenv("CACHE_DB", str(tmp_path / "cache.db"))
+    monkeypatch.setenv("ANALYSES_DIR", str(tmp_path / "analyses"))
+    entry = {c["id"]: c for c in demo.cases()}["dubai_flood"]
+    cmd = UplinkCommand(
+        analysis_id=uuid4(),
+        aoi=place_box(entry["lon"], entry["lat"], entry["name"]),
+        date_a=date.fromisoformat(entry["date_a"]),
+        date_b=date.fromisoformat(entry["date_b"]),
+        intent=entry["intent"],
+        demo_id="dubai_flood",
+    )
+    verdict = type("V", (), {"write": lambda self, packet: "v"})()
+    packet = pipeline.run_analysis(cmd, lambda *args: None, verdict)
+    folder = tmp_path / "explanations"
+    path = demo_explanations.export("demo", "key-1", {"en": explanation}, folder)
+    if version is not None:
+        data = json.loads(path.read_text())
+        data["thresholds_version"] = version
+        path.write_text(json.dumps(data))
+    assert demo_explanations.install(folder) == 1
+    return demo_explanations, packet, THRESHOLDS["version"]
+
+
+def explanation_with(number):
+    return {
+        "headline": f"Water over {number} ha.",
+        "body": "Likely flooding.",
+        "caveats": [],
+        "numbers_used": [number],
+    }
+
+
+def test_committed_explanation_used_only_for_its_result(monkeypatch, tmp_path):
+    ha = packet_ha(monkeypatch, tmp_path)
+    module, packet, _ = committed_setup(monkeypatch, tmp_path, explanation_with(ha))
+    assert module.lookup("key-1", "en", packet) is not None
+    assert module.lookup("key-1", "ar", packet) is None  # no Arabic stored
+    assert module.lookup("other-key", "en", packet) is None  # different result
+
+
+def packet_ha(monkeypatch, tmp_path):
+    entry = {c["id"]: c for c in demo.cases()}["dubai_flood"]
+    monkeypatch.setenv("ANALYSES_DIR", str(tmp_path / "pre"))
+    cmd = UplinkCommand(
+        analysis_id=uuid4(),
+        aoi=place_box(entry["lon"], entry["lat"], "x"),
+        date_a=date.fromisoformat(entry["date_a"]),
+        date_b=date.fromisoformat(entry["date_b"]),
+        intent=entry["intent"],
+        demo_id="dubai_flood",
+    )
+    verdict = type("V", (), {"write": lambda self, packet: "v"})()
+    return pipeline.run_analysis(cmd, lambda *args: None, verdict).stats.changed_ha
+
+
+def test_stale_version_or_unsupported_numbers_are_never_shown(monkeypatch, tmp_path):
+    from satcore.config import THRESHOLDS
+
+    ha = packet_ha(monkeypatch, tmp_path)
+    module, packet, _ = committed_setup(
+        monkeypatch, tmp_path, explanation_with(ha), version=THRESHOLDS["version"] - 1
+    )
+    assert module.lookup("key-1", "en", packet) is None  # older thresholds version
+    module, packet, _ = committed_setup(
+        monkeypatch, tmp_path / "b", explanation_with(9999.5)
+    )
+    assert module.lookup("key-1", "en", packet) is None  # number not in the packet

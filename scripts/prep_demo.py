@@ -5,6 +5,7 @@
     python -m scripts.prep_demo fetch [--case ID]              # network: cache bands + WorldCover
     python -m scripts.prep_demo run [--case ID]                # full ground flow, en/ar/hi, into the cache
     python -m scripts.prep_demo verify [--case ID]             # offline: recompute, fail if ha differ > 2%
+    python -m scripts.prep_demo load                           # load committed explanations into the cache
 
 Real demo cases are the entries in config/demo_cases.yaml with item_a and item_b. After
 `fetch` and `run`, start the ground station with OFFLINE=1 to play them without a network.
@@ -140,11 +141,38 @@ def fetch(case):
     )
 
 
+def result_key(case) -> str:
+    """The ground cache key of a demo's result (as computed by ground.main.run)."""
+    from ground import cache
+    from satcore.urban_model import model_identity
+
+    cmd = command(case)
+    detector = (
+        model_identity() if cmd.intent in {"urban_growth", "visible_change"} else None
+    )
+    return cache.cache_key(cmd, detector)
+
+
+def explanation_source(explanation: dict, packet: dict, language: str) -> str:
+    """'template' if this is the packet template (model unavailable or rejected), else 'model'."""
+    from ground.llm.explainer import template
+    from satcore.models import AnswerPacket
+
+    fallback = template(AnswerPacket.model_validate(packet), language).model_dump()
+    same = all(explanation[k] == fallback[k] for k in ("headline", "body"))
+    return "template" if same else "model"
+
+
 def run(case, languages):
+    """Full ground flow per language; exports the explanations to config/demo_explanations/."""
     from fastapi.testclient import TestClient
 
+    from ground import demo_explanations
+    from ground.llm.schemas import Explanation
     from ground.main import app
+    from satcore.models import AnswerPacket
 
+    explanations = {}
     with TestClient(app) as client:
         for language in languages:
             reply = client.post(
@@ -169,22 +197,28 @@ def run(case, languages):
                 )
             result = client.get(f"/api/analyses/{identifier}").json()
             stats = result["packet"]["stats"] or {}
+            explanation = result["explanation"]
+            packet = AnswerPacket.model_validate(result["packet"])
+            bad = demo_explanations.problems(Explanation(**explanation), packet)
+            if bad:
+                raise SystemExit(f"{case['id']} ({language}): guard rejected {bad}")
+            explanations[language] = explanation
             print(
                 f"{case['id']} [{language}] {result['packet']['status']} "
-                f"{stats.get('changed_ha')} ha · {result['explanation']['headline'][:70]}"
+                f"{stats.get('changed_ha')} ha · "
+                f"{explanation_source(explanation, result['packet'], language)} · "
+                f"{explanation['headline'][:70]}"
             )
+    path = demo_explanations.export(case["id"], result_key(case), explanations)
+    print(f"  wrote {path.relative_to(ROOT)}")
 
 
 def verify(case) -> bool:
     from ground import cache
     from node.verdict import TemplateVerdict
-    from satcore.urban_model import model_identity
 
     cmd = command(case)
-    detector = (
-        model_identity() if cmd.intent in {"urban_growth", "visible_change"} else None
-    )
-    key = cache.cache_key(cmd, detector)
+    key = result_key(case)
     rows = [cache.cached(key, language) for language in LANGUAGES]
     rows = [row for row in rows if row is not None]
     if not rows:
@@ -202,16 +236,52 @@ def verify(case) -> bool:
     missing = set(LANGUAGES) - languages
     ok &= not missing
     note = f"; missing languages: {sorted(missing)}" if missing else ""
+    explained, detail = committed_explanations(case, key, rows)
+    ok &= explained
     print(
         f"{case['id']}: {'ok' if ok else 'FAIL'} cached {sorted(cached_ha)} ha, "
-        f"recomputed {fresh_ha} ha{note}"
+        f"recomputed {fresh_ha} ha{note}; explanations: {detail}"
     )
     return ok
 
 
+def committed_explanations(case, key, rows) -> tuple[bool, str]:
+    """Check config/demo_explanations/<id>.json matches this result and passes the guard."""
+    from ground import demo_explanations
+    from ground.llm.schemas import Explanation
+    from satcore.config import THRESHOLDS
+    from satcore.models import AnswerPacket
+
+    path = demo_explanations.FOLDER / f"{case['id']}.json"
+    if not path.exists():
+        return False, "no committed file"
+    data = json.loads(path.read_text("utf-8"))
+    if data["cache_key"] != key or data["thresholds_version"] != THRESHOLDS["version"]:
+        return (
+            False,
+            "stale (key or thresholds version differs; re-run `prep_demo run`)",
+        )
+    missing = set(LANGUAGES) - set(data["explanations"])
+    if missing:
+        return False, f"missing {sorted(missing)}"
+    packet = AnswerPacket.model_validate_json(rows[0]["packet_json"])
+    sources = []
+    for language in LANGUAGES:
+        explanation = data["explanations"][language]
+        bad = demo_explanations.problems(Explanation(**explanation), packet)
+        if bad:
+            return False, f"{language} fails the number guard: {bad}"
+        sources.append(
+            f"{language}={explanation_source(explanation, json.loads(rows[0]['packet_json']), language)}"
+        )
+    return True, ", ".join(sources) + " (guard ok)"
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=["list", "pin", "fetch", "run", "verify"])
+    parser.add_argument(
+        "command", choices=["list", "pin", "fetch", "run", "verify", "load"]
+    )
     parser.add_argument("--case")
     parser.add_argument("--window", type=int, default=15)
     parser.add_argument("--a", help="pin: item ID(s) for date A, comma-separated")
@@ -232,6 +302,15 @@ def main(argv=None):
         if not args.case:
             raise SystemExit("list needs --case")
         list_scenes(next(c for c in cases() if c["id"] == args.case), args.window)
+        return
+    if args.command == "load":
+        from ground import demo_explanations
+
+        print(
+            "loaded",
+            demo_explanations.install(),
+            "committed explanations into the cache",
+        )
         return
     selected = real_cases(args.case)
     if args.command == "fetch":

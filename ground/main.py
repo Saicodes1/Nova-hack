@@ -22,7 +22,7 @@ from satcore.demo import cases
 from satcore.geo import build_grid, place_box
 from satcore.models import AOI, AnswerPacket, Intent, Language, UplinkCommand
 
-from . import cache, geocode, orbit
+from . import cache, demo_explanations, geocode, orbit
 from .events import EventLog
 from .link import RATES, downlink
 from .llm.client import configured, offline
@@ -43,6 +43,10 @@ SHUTDOWN_GRACE_S = 5
 
 @asynccontextmanager
 async def lifespan(_app):
+    try:
+        await asyncio.to_thread(demo_explanations.install)
+    except Exception:
+        logger.exception("Could not load committed demo explanations.")
     yield
     # Give running analyses a moment to finish, then cancel them so Ctrl+C
     # never hangs on a slow imagery download.
@@ -129,12 +133,18 @@ async def run(cmd, plan, request, mode, active_node, artifact_mode):
         log.push("explain", "started")
         prior_plan = AnalysisPlan.model_validate_json(hit["plan_json"]) if hit else None
         reusable = hit and prior_plan.language == plan.language and not configured()
-        explanation = (
-            Explanation.model_validate_json(hit["explanation_json"])
-            if reusable
-            else await explain(packet, plan.language)
+        # Committed demo explanation for this exact result (key, thresholds version,
+        # number guard), else a cached one (offline / no key), else write a new one.
+        committed = await asyncio.to_thread(
+            demo_explanations.lookup, key, plan.language, packet
         )
-        log.push("explain", "done", replayed=bool(reusable))
+        if committed is not None:
+            explanation = committed
+        elif reusable:
+            explanation = Explanation.model_validate_json(hit["explanation_json"])
+        else:
+            explanation = await explain(packet, plan.language)
+        log.push("explain", "done", replayed=bool(committed is not None or reusable))
         await asyncio.to_thread(
             cache.save,
             identifier,
