@@ -9,18 +9,33 @@ from .geo import place_box
 from .models import Grid, SceneRef
 
 
-def cases():
+def _entries(key: str, synthetic: bool):
     entries = yaml.safe_load(
         (ROOT / "config/demo_cases.yaml").read_text(encoding="utf-8")
-    )["cases"]
+    ).get(key, [])
     return [
         dict(
             case,
             aoi=place_box(case["lon"], case["lat"], case["name"]).model_dump(),
-            synthetic=True,
+            synthetic=synthetic,
         )
         for case in entries
     ]
+
+
+def cases():
+    """Offline examples drawn from synthetic imagery."""
+    return _entries("cases", True)
+
+
+def presets():
+    """Real places and dates that run through the live Sentinel-2 pipeline."""
+    return _entries("presets", False)
+
+
+def watch_presets():
+    """Standing questions replayed over real past overpasses."""
+    return _entries("watches", False)
 
 
 def scene(case_id, role, target):

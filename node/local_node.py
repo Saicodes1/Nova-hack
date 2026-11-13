@@ -7,8 +7,9 @@ from satcore.models import UplinkCommand
 from satcore.packet import packet_bytes
 from satcore.pipeline import run_analysis
 
+from .hardware import hardware
 from .protocol import NodeEvent, Telemetry
-from .verdict import TemplateVerdict
+from .verdict import make_verdict
 
 
 class LocalNode:
@@ -16,6 +17,7 @@ class LocalNode:
         self.running: set[UUID] = set()
         self.last_packet_bytes: int | None = None
         self.slot = asyncio.Semaphore(2)
+        self.verdict = make_verdict()
 
     async def uplink(self, cmd: UplinkCommand):
         queue = asyncio.Queue()
@@ -37,7 +39,7 @@ class LocalNode:
                 async with self.slot:
                     self.running.add(cmd.analysis_id)
                     packet = await asyncio.to_thread(
-                        run_analysis, cmd, emit, TemplateVerdict()
+                        run_analysis, cmd, emit, self.verdict
                     )
                     self.last_packet_bytes = packet_bytes(packet)
                     queue.put_nowait(
@@ -65,8 +67,13 @@ class LocalNode:
             await asyncio.shield(task)
 
     async def telemetry(self):
+        power, temp = hardware.read(busy=bool(self.running))
         return Telemetry(
             mode="local",
+            power_w=power,
+            temp_c=temp,
+            power_source=hardware.source,
+            verdict_writer=self.verdict.name,
             state="processing" if self.running else "idle",
             mem_used_mb=psutil.Process().memory_info().rss // (1024 * 1024),
             last_packet_bytes=self.last_packet_bytes,

@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {ArrowDownToLine} from 'lucide-react';
-import {intents, number, type Packet} from './types';
+import {intents as intentNames, number, type Packet} from './types';
+const intents = Object.fromEntries(Object.entries(intentNames).map(([key,value])=>[key,value.label])) as Record<string,string>;
 
 const background = '#10151d';
 const ink = '#e6edf3';
@@ -148,8 +149,8 @@ export default function ComparisonDownload({packet}:{packet:Packet}) {
 
   return <div className="comparison-download">
     <button type="button" onClick={download} disabled={busy}><ArrowDownToLine size={16}/>
-      {busy?'Preparing PNG…':'Download comparison PNG'}
+      {busy?'Preparing PNG…':'Download before / after image'}
     </button>
-    {error&&<p className="field-note warning" role="alert">{error}</p>}
+    {error&&<p className="hint bad" role="alert">{error}</p>}
   </div>;
 }

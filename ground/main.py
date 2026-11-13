@@ -2,8 +2,9 @@ import asyncio
 import json
 import logging
 import os
+from collections import deque
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -17,16 +18,18 @@ from shapely.geometry import shape
 
 from node.local_node import LocalNode
 from node.remote_node import NodeUnavailable, RemoteNode
+from satcore import store
 from satcore.config import ROOT, data_path
-from satcore.demo import cases
+from satcore.demo import cases, presets, watch_presets
 from satcore.geo import build_grid, place_box
 from satcore.models import AOI, AnswerPacket, Intent, Language, UplinkCommand
 
-from . import cache, geocode, orbit
+from . import cache, geocode, orbit, watch
 from .events import EventLog
 from .link import RATES, downlink
 from .llm.client import configured
 from .llm.explainer import explain
+from .llm.local_planner import place_candidates, plan_locally
 from .llm.planner import plan_question
 from .llm.schemas import AnalysisPlan, Explanation
 
@@ -38,11 +41,19 @@ node = RemoteNode(node_url) if node_mode == "remote" else LocalNode()
 jobs: dict[UUID, EventLog] = {}
 job_modes: dict[UUID, str] = {}
 tasks: set[asyncio.Task] = set()
+# One question reaches the satellite at a time; the rest wait their turn.
+uplink_turn = asyncio.Lock()
+waiting: list[UUID] = []
+recent: deque[dict] = deque(maxlen=40)
 
 
 @asynccontextmanager
 async def lifespan(_app):
+    for armed in watch.restore():
+        watch.loops[armed["id"]] = asyncio.create_task(watch.run(armed, watch_pass))
     yield
+    for loop in list(watch.loops.values()):
+        loop.cancel()
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -59,6 +70,18 @@ class Ask(BaseModel):
     language: Language = "en"
     demo_id: str | None = None
     link_mode: LinkMode | None = None
+    # Use the acquisition of exactly that day, however cloudy.
+    exact_a: bool = False
+    exact_b: bool = False
+    report_floor_ha: float | None = Field(None, ge=0)
+    # "phone" marks a question sent from the audience page behind the QR code.
+    source: Literal["desk", "phone"] = "desk"
+
+
+class PassQuery(BaseModel):
+    aoi: AOI
+    start: date
+    end: date
 
 
 class ChatRequest(BaseModel):
@@ -118,16 +141,25 @@ async def run(cmd, plan, request, mode, active_node, artifact_mode):
                     detail["artifact_id"] = str(artifact_id)
                 log.push(event["stage"], event["status"], detail, event["ms"], True)
         else:
-            log.push("uplink", "started")
-            log.push("uplink", "done")
-            packet = None
-            async for event in active_node.uplink(cmd):
-                detail = event.detail.copy()
-                if event.stage == "render" and event.status == "done":
-                    detail["artifact_id"] = str(identifier)
-                log.push(event.stage, event.status, detail, event.ms)
-                if event.packet:
-                    packet = event.packet
+            waiting.append(identifier)
+            try:
+                if uplink_turn.locked():
+                    log.push("queued", "started", {"ahead": len(waiting) - 1})
+                async with uplink_turn:
+                    if log.events and log.events[-1]["stage"] == "queued":
+                        log.push("queued", "done")
+                    log.push("uplink", "started")
+                    log.push("uplink", "done")
+                    packet = None
+                    async for event in active_node.uplink(cmd):
+                        detail = event.detail.copy()
+                        if event.stage == "render" and event.status == "done":
+                            detail["artifact_id"] = str(identifier)
+                        log.push(event.stage, event.status, detail, event.ms)
+                        if event.packet:
+                            packet = event.packet
+            finally:
+                waiting.remove(identifier)
             if packet is None:
                 raise RuntimeError("The node returned an incomplete packet.")
         log.push("downlink", "started", {"mode": mode})
@@ -206,6 +238,9 @@ def start(aoi, plan, request):
         date_b=plan.date_b,
         intent=plan.intent,
         demo_id=request.demo_id,
+        exact_a=request.exact_a and not request.demo_id,
+        exact_b=request.exact_b and not request.demo_id,
+        report_floor_ha=request.report_floor_ha,
     )
     mode = request.link_mode or os.getenv("LINK_MODE", "demo-fast")
     if mode not in RATES:
@@ -214,8 +249,27 @@ def start(aoi, plan, request):
     artifact_mode = "local" if request.demo_id else node_mode
     jobs[identifier] = EventLog()
     job_modes[identifier] = artifact_mode
+    if request.report_floor_ha is None:
+        recent.append(
+            {
+                "analysis_id": str(identifier),
+                "question": request.question[:200],
+                "place": aoi.name,
+                "intent": plan.intent,
+                "source": request.source,
+                "asked_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
     schedule(run(cmd, plan, request, mode, active_node, artifact_mode))
-    return {"analysis_id": str(identifier)}
+    # The plan goes back at once so the map can fly to the area while the
+    # node is still working.
+    return {
+        "analysis_id": str(identifier),
+        "aoi": aoi.model_dump(),
+        "date_a": str(plan.date_a),
+        "date_b": str(plan.date_b),
+        "intent": plan.intent,
+    }
 
 
 demo_node = node if node_mode == "local" else LocalNode()
@@ -250,17 +304,14 @@ async def ask(request: Ask):
             return {
                 "clarification": "Enter a question or choose an area, two dates, and an analysis type."
             }
-        if not configured():
-            return {
-                "clarification": "Choose an area, two dates, and an analysis type to run this without OpenAI."
-            }
-        try:
-            plan = await plan_question(request.model_dump(mode="json"))
-        except (OpenAIError, ValueError) as exc:
-            raise HTTPException(
-                502,
-                "OpenAI could not plan the request. Check the configured key and model.",
-            ) from exc
+        if configured():
+            try:
+                plan = await plan_question(request.model_dump(mode="json"))
+            except (OpenAIError, ValueError):
+                logger.warning("OpenAI planner unavailable; using the local planner.")
+                plan = plan_locally(request.model_dump(mode="json"))
+        else:
+            plan = plan_locally(request.model_dump(mode="json"))
         plan = plan.model_copy(
             update={
                 "language": request.language,
@@ -278,18 +329,48 @@ async def ask(request: Ask):
             }
         if aoi is None:
             if not plan.place_name:
-                return {"clarification": "Which place should be analyzed?"}
-            locations = await lookup(plan.place_name)
+                return {
+                    "clarification": "Which place? Add a city, district or "
+                    "landmark, for example: Did Hyderabad flood in September 2024?"
+                }
+            # The planner's first guess, then every other wording of the place
+            # found in the question, until the geocoder recognises one.
+            names = [plan.place_name] + [
+                name
+                for name in place_candidates(request.question)
+                if name != plan.place_name
+            ]
+            locations = []
+            for name in names[:8]:
+                if len(name) >= 2:
+                    locations = await lookup(name)
+                if locations:
+                    break
             if not locations:
                 return {
-                    "clarification": "That place could not be located. Draw the area on the map."
+                    "clarification": f'I could not find a place called "{plan.place_name}". '
+                    "Try a city, district or landmark name."
                 }
-            if len(locations) > 1:
-                return {
-                    "clarification": "Several places match. Choose the intended location using map search."
-                }
-            place = locations[0]
-            aoi = place_box(place["lon"], place["lat"], place["name"])
+            # Prefer a match in a country the question names ("... india").
+            asked = request.question.lower()
+            place = next(
+                (
+                    item
+                    for item in locations
+                    if item["country"] and item["country"].lower() in asked
+                ),
+                locations[0],
+            )
+            label = ", ".join(
+                dict.fromkeys(
+                    part for part in (place["name"], place["country"]) if part
+                )
+            )
+            if place.get("broad"):
+                # A state or country is far larger than one analysis. Say so in
+                # the name that appears on every answer.
+                label = f"Centre of {label} (5 km sample)"
+            aoi = place_box(place["lon"], place["lat"], label)
     return start(aoi, plan, request)
 
 
@@ -466,7 +547,94 @@ async def orbit_tracks(hours: int = Query(3, ge=1, le=12)):
 
 @app.get("/api/demo-cases")
 async def demo_cases():
-    return {"cases": cases()}
+    return {"cases": cases(), "presets": presets(), "watches": watch_presets()}
+
+
+@app.post("/api/passes")
+async def passes(query: PassQuery):
+    """Real Sentinel-2 overpasses of an area, with cloud cover over that area."""
+    if query.end < query.start or (query.end - query.start).days > 120:
+        raise HTTPException(422, "Choose a period of up to 120 days.")
+    try:
+        grid = build_grid(query.aoi)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    try:
+        return await asyncio.to_thread(
+            store.passes, query.aoi, grid, query.start, min(query.end, date.today())
+        )
+    except Exception as exc:
+        logger.warning("Pass listing failed: %s", exc)
+        raise HTTPException(502, "The imagery catalog is unavailable.") from exc
+
+
+async def watch_pass(item, baseline, day):
+    """Task the node with one overpass of a watch and wait for its packet."""
+    request = Ask(
+        question=item["question"],
+        aoi=AOI.model_validate(item["aoi"]),
+        date_a=baseline,
+        date_b=day,
+        intent=item["intent"],
+        language=item["language"],
+        link_mode=item["link_mode"],
+        exact_a=True,
+        exact_b=True,
+        report_floor_ha=item["floor_ha"],
+    )
+    identifier = UUID((await ask(request))["analysis_id"])
+    while (log := jobs.get(identifier)) and not log.terminal:
+        await asyncio.sleep(0.2)
+    row = await asyncio.to_thread(cache.find, identifier)
+    if row is None:
+        failure = log.events[-1]["detail"].get("message") if log else None
+        raise RuntimeError(failure or "The node did not answer this pass.")
+    return str(identifier), json.loads(row["packet_json"])
+
+
+@app.post("/api/watches")
+async def create_watch(request: watch.WatchRequest):
+    try:
+        item = watch.create(request)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    watch.loops[item["id"]] = asyncio.create_task(watch.run(item, watch_pass))
+    return watch.summary(item)
+
+
+@app.get("/api/watches")
+async def list_watches():
+    return [watch.summary(item) for item in reversed(watch.watches.values())]
+
+
+@app.get("/api/watches/{identifier}")
+async def get_watch(identifier: str):
+    item = watch.watches.get(identifier)
+    if item is None:
+        raise HTTPException(404, "Watch not found.")
+    return watch.summary(item)
+
+
+@app.post("/api/watches/{identifier}/stop")
+async def stop_watch(identifier: str):
+    item = watch.stop(identifier)
+    if item is None:
+        raise HTTPException(404, "Watch not found.")
+    return watch.summary(item)
+
+
+@app.delete("/api/watches/{identifier}")
+async def delete_watch(identifier: str):
+    if watch.remove(identifier) is None:
+        raise HTTPException(404, "Watch not found.")
+    return {"deleted": identifier}
+
+
+@app.get("/api/recent")
+async def recent_questions():
+    """Latest questions, newest first, so the big screen can show what the
+    room is asking from their phones."""
+    return list(reversed(recent))
 
 
 @app.get("/api/telemetry")
@@ -481,13 +649,35 @@ async def telemetry():
 
 @app.get("/api/health")
 async def health():
+    info = None
+    if node_mode == "remote":
+        try:
+            async with httpx.AsyncClient(timeout=2) as client:
+                info = (await client.get(f"{node_url}/health")).json()
+        except (httpx.HTTPError, ValueError):
+            info = None
     return {
         "node": "configured" if node_mode == "remote" else "online",
+        "node_mode": node_mode,
+        "node_info": info,
+        "public_url": os.getenv("PUBLIC_URL", "").rstrip("/"),
         "stac_primary": os.getenv(
             "STAC_PRIMARY", "https://earth-search.aws.element84.com/v1"
         ),
         "openai": {"planner": configured(), "explainer": configured()},
+        "planner": "openai" if configured() else "local-rules",
     }
+
+
+@app.get("/api/validation/{name}")
+async def validation(name: str):
+    """Accuracy check of a preset against an independent reference map."""
+    if not name.replace("_", "").isalnum():
+        raise HTTPException(404, "No reference check for this case.")
+    path = ROOT / "config/validation" / f"{name}.json"
+    if not path.is_file():
+        raise HTTPException(404, "No reference check for this case.")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 web = ROOT / "web/dist"

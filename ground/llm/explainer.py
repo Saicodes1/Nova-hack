@@ -83,17 +83,64 @@ def template(packet, language):
             )
     else:
         headline = packet.onboard_verdict
-        body = f"Confidence is {packet.trust.level.lower()}." + (
-            f" Acquisition dates were {dates}." if dates else ""
-        )
-        if stats:
-            body += f" Clear coverage in both images was {stats.valid_overlap_pct:g}% of the selected area."
+        body = _plain_english(packet)
     return Explanation(
         headline=headline,
         body=body,
         caveats=packet.trust.caveats[:3],
         numbers_used=[stats.changed_ha, stats.changed_pct] if stats else [],
     )
+
+
+def _plain_english(packet):
+    """A short explanation built only from numbers that are in the packet."""
+    phrases = {
+        "water_gain": "new surface water",
+        "water_loss": "lost surface water",
+        "veg_gain": "new vegetation",
+        "veg_loss": "lost vegetation",
+        "urban_growth": "possible new built-up land",
+        "visible_change": "visible change",
+        "burn": "burned land",
+    }
+    days = [f"{s.datetime.day} {s.datetime:%b %Y}" for s in packet.scenes]
+    stats, level = packet.stats, packet.trust.level.lower()
+    if packet.status == "no_scenes" or len(days) < 2:
+        return (
+            "Sentinel-2 has no usable image of this area near one of the dates, "
+            "so there is nothing to compare."
+        )
+    if packet.status == "refused_cloudy":
+        cloudy = max(packet.scenes, key=lambda scene: scene.aoi_cloud_pct)
+        return (
+            f"The image from {cloudy.datetime.day} {cloudy.datetime:%b %Y} has "
+            f"{cloudy.aoi_cloud_pct:g}% of the area under cloud or shadow. Too little "
+            "ground is visible in both images to measure change, so the satellite "
+            "gives no number."
+        )
+    if packet.status == "no_change" or not stats:
+        return (
+            f"Comparing {days[0]} with {days[1]}, the satellite found no "
+            f"{phrases[packet.intent]} above its detection floor. "
+            f"Confidence is {level}."
+        )
+    text = (
+        f"Comparing {days[0]} with {days[1]}, the satellite found "
+        f"{stats.changed_ha:g} ha of {phrases[packet.intent]} in "
+        f"{stats.n_polygons} {'patch' if stats.n_polygons == 1 else 'patches'}, "
+        f"which is {stats.changed_pct:g}% of the area it could see clearly."
+    )
+    if stats.from_to:
+        top = stats.from_to[0]
+        text += (
+            f" Most of it ({top.ha:g} ha) was mapped as "
+            f"{top.from_class.lower()} in 2021."
+        )
+    text += (
+        f" {stats.valid_overlap_pct:g}% of the area was clear in both images. "
+        f"Confidence is {level}."
+    )
+    return text
 
 
 async def explain(packet, language):

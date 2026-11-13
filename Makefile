@@ -1,4 +1,4 @@
-.PHONY: setup test test-live dev flight lint
+.PHONY: setup test test-live dev flight sim lint
 PYTHON ?= python
 setup:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -13,6 +13,8 @@ dev:
 	$(PYTHON) -m uvicorn ground.main:app --port 8000
 flight:
 	$(PYTHON) -m uvicorn node.flight_app:app --port 8100
+sim:
+	deploy/sim/run.sh
 lint:
 	$(PYTHON) -m ruff check .
 	cd web && npm run typecheck

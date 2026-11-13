@@ -1,10 +1,39 @@
+# Secrets and local settings
 .env
+.env.*
+!.env.example
+
+# Python
 .venv/
 .venv-uv-cache/
 __pycache__/
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+build/
+
+# Web
 node_modules/
 dist/
+*.tsbuildinfo
+
+# Runtime data: stored scenes, answers, models, logs
 var/
+*.sqlite
+*.log
+nohup.out
+
+# Local documents (plans, pitch notes, PDF exports)
+docs
+
+# Archives and editor or OS files
+*.tgz
+*.tar.gz
+*.txz
+*.zip
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/

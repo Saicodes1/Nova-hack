@@ -1,4 +1,6 @@
 import logging
+import platform
+from contextlib import asynccontextmanager
 from typing import Literal
 from uuid import UUID
 
@@ -8,17 +10,37 @@ from fastapi.responses import FileResponse, StreamingResponse
 from satcore.config import data_path
 from satcore.models import UplinkCommand
 
+from .hardware import hardware
 from .local_node import LocalNode
 from .protocol import NodeEvent
 
-app = FastAPI(title="Ask the Satellite Flight Node")
 node = LocalNode()
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    hardware.start()
+    if hasattr(node.verdict, "warm_in_background"):
+        node.verdict.warm_in_background()
+    yield
+
+
+app = FastAPI(title="Ask the Satellite Flight Node", lifespan=lifespan)
 logger = logging.getLogger(__name__)
 
 
 @app.get("/health")
 async def health():
-    return {"node": "online"}
+    hardware.start()  # otherwise power_source reads "none" until the first /telemetry
+    ready = getattr(node.verdict, "ready", None)
+    return {
+        "node": "online",
+        "host": platform.node(),
+        "machine": platform.machine(),
+        "verdict_writer": node.verdict.name,
+        "power_source": hardware.source,
+        "verdict_model_ready": ready.is_set() if ready else None,
+    }
 
 
 @app.get("/telemetry")

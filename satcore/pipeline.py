@@ -1,12 +1,14 @@
 import logging
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from datetime import timedelta
 from time import perf_counter
 from typing import Protocol
 
 import numpy as np
 
-from . import change, demo, indices, landcover, masks, render, stac, store, urban_model
+from . import change, demo, indices, landcover, masks, render, store, urban_model
 from .config import THRESHOLDS, data_path
 from .geo import aoi_mask, build_grid, validate_aoi
 from .models import AnswerPacket, ChangeStats, UplinkCommand
@@ -19,6 +21,11 @@ logger = logging.getLogger(__name__)
 
 class VerdictWriter(Protocol):
     def write(self, packet: AnswerPacket) -> str: ...
+
+
+def _load_pair(selections, grid):
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        return list(pool.map(lambda item: store.load_scene(item, grid), selections))
 
 
 def run_analysis(
@@ -43,13 +50,22 @@ def run_analysis(
             if cmd.demo_id:
                 scenes.append(demo.scene(cmd.demo_id, role, target))
             else:
-                found = stac.select_scene(
-                    cmd.aoi,
-                    grid,
-                    target,
-                    role,
-                    cmd.window_days,
-                    after=scenes[0].datetime if scenes else None,
+                # Each scene stays on its own side of the midpoint between the
+                # two requested dates, and B is always later than A.
+                middle = cmd.date_a + (cmd.date_b - cmd.date_a) / 2
+                if cmd.exact_a if role == "A" else cmd.exact_b:
+                    limits = {"exact": True}
+                elif role == "A":
+                    limits = {"latest": middle}
+                else:
+                    limits = {"earliest": middle + timedelta(days=1)}
+                    if scenes:
+                        limits["earliest"] = max(
+                            limits["earliest"],
+                            scenes[0].datetime.date() + timedelta(days=1),
+                        )
+                found = store.select_scene(
+                    cmd.aoi, grid, target, role, cmd.window_days, **limits
                 )
                 if found:
                     selections.append(found)
@@ -66,7 +82,7 @@ def run_analysis(
             a, b = (
                 [demo.bands(grid, cmd.demo_id, role) for role in ("A", "B")]
                 if cmd.demo_id
-                else [store.load_scene(selection, grid) for selection in selections]
+                else _load_pair(selections, grid)
             )
         with stage("cloud_check") as detail:
             for scene, layers in zip(scenes, (a, b), strict=True):
@@ -138,7 +154,7 @@ def run_analysis(
                 mask = labels > 0
                 areas = [feature["properties"]["ha"] for feature in geojson["features"]]
             with stage("landcover"):
-                cover = None if cmd.demo_id else stac.worldcover(cmd.aoi, grid)
+                cover = None if cmd.demo_id else store.worldcover(cmd.aoi, grid)
                 if cover is not None and cmd.intent != "visible_change":
                     stable = valid & np.isin(cover, [50, 60])
                     index = {
@@ -162,7 +178,13 @@ def run_analysis(
                 )
     with stage("trust"):
         status, trust = assess(
-            scenes, overlap, stats, cover is not None, cmd.season_baseline, haze
+            scenes,
+            overlap,
+            stats,
+            # Land cover is only looked up once change has been measured.
+            cover is not None or stats is None,
+            cmd.season_baseline,
+            haze,
         )
         if cmd.intent == "urban_growth" and stats is not None:
             trust.flags.append("construction_candidates")
@@ -178,7 +200,16 @@ def run_analysis(
                 0,
                 "FresUNet highlights visible differences. Lighting, shadows and seasonal changes can appear in the overlay.",
             )
-    if len(scenes) == 2:
+    # A standing watch only spends downlink on a change worth reporting.
+    quiet = cmd.report_floor_ha is not None and not (
+        status == "ok" and stats and stats.changed_ha >= cmd.report_floor_ha
+    )
+    if quiet:
+        geojson = None
+        trust.thresholds = {}
+        for scene in scenes:
+            scene.asset_hrefs = {}
+    if len(scenes) == 2 and not quiet:
         with stage("render") as detail:
             thumbnails, bounds = render.render(
                 directory,
@@ -234,9 +265,25 @@ def run_analysis(
         timings_ms={},
         attribution=attribution,
         raw_equivalent_bytes=raw_equivalent(selections),
+        raw_latest_bytes=raw_equivalent(selections[1:]),
+        report="quiet" if quiet else "full",
     )
     with stage("verdict"):
-        packet.onboard_verdict = verdict.write(packet)
+        if not quiet:
+            packet.onboard_verdict = verdict.write(packet)
+        elif status == "refused_cloudy":
+            packet.onboard_verdict = (
+                f"Pass too cloudy to judge ({overlap}% of the area clear). "
+                "Imagery held onboard."
+            )
+        elif status == "no_scenes":
+            packet.onboard_verdict = "No acquisition for this pass."
+        else:
+            packet.onboard_verdict = (
+                f"Nothing to report: {stats.changed_ha if stats else 0} ha changed, "
+                f"below the {cmd.report_floor_ha:g} ha reporting floor. "
+                "Imagery held onboard."
+            )
     with stage("packet"):
         pass
     packet.timings_ms = timings

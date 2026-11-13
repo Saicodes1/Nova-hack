@@ -1,35 +1,134 @@
 # Ask the Satellite
 
-Ask the Satellite compares two Sentinel-2 acquisitions over a selected area. The satellite node reads imagery, masks clouds, detects change on a 10 m grid, and downlinks a compact packet. The ground station displays scene provenance, confidence, imagery, polygons, progress and link estimates.
+Ask a question about a place and two dates. An emulated AI satellite compares real Sentinel-2 images, measures what changed, and sends back a short answer with its evidence and a confidence score.
 
-## Run on Windows
+The satellite is a Jetson Orin Nano running the analysis onboard. Only a small answer packet comes down the simulated radio link, not the images.
 
-From this folder, with Python 3.11+ and Node installed:
+Built for Challenge 1, "Ask the Satellite". Every data source is free.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-npm --prefix web ci
-npm --prefix web run build
-.\.venv\Scripts\python.exe -m uvicorn ground.main:app --host 127.0.0.1 --port 8000
+## What runs where
+
+| Part | Folder | Runs on | Port |
+| --- | --- | --- | --- |
+| Change engine | `satcore/` | the satellite node | |
+| Flight node | `node/` | Jetson Orin Nano (or inside the ground station for a laptop-only run) | 8100 |
+| Ground station API | `ground/` | laptop | 8000 |
+| Web interface | `web/` | served by the ground station | 8000 |
+
+The ground station plans the question, sends a short command up, shows progress, and explains the answer. The node finds the images, masks cloud, detects change, scores confidence and writes a one-sentence verdict with a local language model.
+
+## Quick start (laptop only)
+
+Needs Python 3.11+ and Node 20+.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+npm --prefix web ci && npm --prefix web run build
+cp .env.example .env
+.venv/bin/python -m uvicorn ground.main:app --port 8000
 ```
 
-Open [the local ground station](http://127.0.0.1:8000). If the project already has the installed environment and built frontend, run the last command only. For live frontend development, keep the API running and use `npm --prefix web run dev`, then open the Vite URL.
+Open http://127.0.0.1:8000 and click a case under **Try a real case**. With `NODE_MODE=local` (the default) the node runs inside the ground station, so no Jetson is needed.
 
-Choose **Run demo** to generate an offline example. The four demo cases use explicitly labeled synthetic imagery. They exercise the same indices, cloud masks, change rules, packet serialization, and display as live mode. The basemap, place search and orbit predictions need internet access.
+On Windows without WSL, use `.\.venv\Scripts\python.exe` in place of `.venv/bin/python`.
 
-For real imagery select **Live Sentinel-2**. Draw a polygon or rectangle, or choose a place to create a 5 km box. Pick before and after dates, choose an analysis type, and submit. The maximum area is 50 km². Acquisition dates can differ from requested dates when the catalog supplies better coverage nearby.
+## Jetson flight node
 
-## OpenAI
+On the Jetson (JetPack 6 or newer), with this folder copied over (`web/` is not needed there):
 
-Copy `.env.example` to `.env`. Add your `OPENAI_API_KEY` locally and restart the API. The key is read by the Python server and `.env` is ignored by Git. Both model settings default to [GPT-4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini) and can be overridden.
+```bash
+deploy/jetson/setup.sh     # once: Python environment, Ollama and the llama3.2:3b model
+deploy/jetson/run.sh       # start the node on 0.0.0.0:8100
+deploy/jetson/check.sh     # smoke test: health, telemetry, offline and live analysis
+```
 
-- `OPENAI_MODEL_FAST` uses Responses structured outputs to turn a question into a plan.
-- `OPENAI_MODEL_MAIN` uses Responses structured outputs for explanations and function calling for follow-ups.
+Wait until `curl -s localhost:8100/health` shows `"verdict_model_ready": true`. After a reboot the model takes about 3 minutes to load, then stays in memory.
 
-With explicit AOI, dates and analysis type, the server can run without a key. The node always computes the measurements. The server checks model-generated numbers against the evidence and can use a packet-based explanation if the model fails or introduces unsupported numbers.
+On the laptop, set these in `.env` and start the ground station. Over the Jetson's USB-C cable its address is `192.168.55.1`:
 
-## Node and data
+```
+NODE_MODE=remote
+NODE_URL=http://192.168.55.1:8100
+```
+
+The header then shows "Jetson Orin Nano" with its live power draw and temperature. The Jetson needs its own internet the first time it sees a place, because it downloads the image crops itself. Places it has analysed before are stored on its disk.
+
+## Phone link (QR code)
+
+```bash
+deploy/phone_link.sh
+```
+
+Needs [`cloudflared`](https://github.com/cloudflare/cloudflared/releases) on the laptop. The script opens a public address through a Cloudflare quick tunnel, writes it to `.env` as `PUBLIC_URL`, restarts the ground station on port 8000 and prints the phone address. Press **Phone QR** on the big screen to show the code.
+
+- The address is public while the script runs, and it changes on every run.
+- The tunnel and the ground station run on the laptop. If the laptop sleeps, both stop.
+- Questions are answered one at a time. Each phone shows how many are ahead of it.
+
+## Without the Jetson
+
+Nothing needs the board. Two ways to run without it:
+
+- **In-process (the default).** With `NODE_MODE=local` the ground station runs the engine itself.
+- **Simulated flight node.** `deploy/sim/run.sh` (or `make sim`) starts the same node code on `127.0.0.1:8100`. Set `NODE_MODE=remote` and `NODE_URL=http://127.0.0.1:8100` and the ground station talks to it exactly as it talks to the Jetson.
+
+In the simulated node the analyses are real: same engine, same imagery. Only power and temperature are simulated, modelled on the Jetson's measurements (3.5 W idle, 9.7 W mean and 18.9 W peak while analysing, 42 °C rising towards 50 °C). They are labelled "simulated" in `/health`, `/telemetry` and on screen, so they are never shown as measurements. The verdict is written by a local Ollama model if one is running on the machine, otherwise by the template sentence.
+
+`deploy/sim/demo.sh` starts the model server, the simulated node and the ground station together: the whole demo on one machine.
+
+## What it can do
+
+- **Six kinds of change:** new water, lost water, lost vegetation, new vegetation, new buildings, burn scars.
+- **Plain questions:** "telangana india, any flood effects from jan 2024 to jan 2025" works with no paid service. A rule-based planner reads the change type, dates and place.
+- **Real overpasses:** the "When" step lists the actual Sentinel-2 passes near a date with the cloud cover over the chosen area.
+- **Honest refusals:** if too little of the area is clear in both images, it refuses and offers the nearest clear passes.
+- **Confidence:** a 0–100 score built from documented checks, each one shown as a plain caveat.
+- **Standing watch:** the same question on every overpass. The node sends about 2 KB when nothing changed and the full answer only on real change.
+- **Phone access:** a QR code opens a phone page. Questions from the room appear on the big screen. They are answered one at a time, in order.
+- **Three languages:** English, Arabic, Hindi.
+
+## Measured numbers
+
+All measured on this build, on the Jetson, unless stated.
+
+| What | Value |
+| --- | --- |
+| Dubai flood case (12 → 22 Apr 2024) | 198.72 ha of new water, 8.5% of the area, confidence 100 |
+| Answer packet for that case | 87,413 bytes |
+| Raw images for both dates | 3,448,970,118 bytes (about 39,000 times larger) |
+| Over UHF at 9.6 kbit/s | 73 s for the answer, 33 days for the raw images |
+| Standing watch, April 2024, six passes | 239 KB sent, 9.8 GB if sent raw |
+| Power | about 3.5 W idle with the model loaded, 18.9 W peak |
+| Onboard verdict (model warm) | 1.4–2.1 s |
+| Repeat question (scenes stored) | 3–4 s |
+| New place (scenes downloaded) | about 20–40 s |
+| Rondônia against INPE PRODES 2020–2024 | recall 0.84, precision 0.38 (one 25 km² site) |
+
+## Free mode and OpenAI
+
+Nothing paid is required. Without `OPENAI_API_KEY`:
+
+- questions are read by `ground/llm/local_planner.py`;
+- the explanation is built from the packet's numbers;
+- the follow-up chat is hidden.
+
+With a key, OpenAI plans the question, writes the explanation and answers follow-ups. Every number it writes is checked against the packet, and a failed check falls back to the built-in text. The OpenAI path has not been tested in the current interface.
+
+## Checks
+
+```bash
+.venv/bin/python -m pytest -q            # 27 offline tests
+.venv/bin/python -m pytest -q -m live    # one live test, needs internet
+.venv/bin/python -m ruff check .
+npm --prefix web run typecheck
+.venv/bin/python -m scripts.validate_prodes   # accuracy check against INPE PRODES
+```
+
+## Optional neural detectors
+
+None of this is needed to run the product. The default detectors are index rules.
+
+### FresUNet for urban growth
 
 Live **Urban growth** can use the published [FresUNet RGB checkpoint](https://www.ipol.im/pub/art/2022/439/) to help find visibly changed areas. The detector uses the Sentinel-2 bands to screen possible development and retains the cloud and patch-size checks. The **Evidence** tab names the detector used. A model score represents visible change and can also respond to grading or exposed soil.
 
@@ -79,16 +178,16 @@ foreach ($split in @('train','test')) {
 
 Use the CPU PyTorch and torchvision versions from the earlier setup commands. The experiment saves the trained decoder, benchmark metrics, pixel scores, and GeoJSON patches beside its comparison PNG.
 
-The FastAPI ground station talks to an in-process node by default. To exercise the HTTP node locally, start `python -m uvicorn node.flight_app:app --port 8100` in another terminal and set `NODE_MODE=remote` and `NODE_URL=http://127.0.0.1:8100` in the ground server environment. Run a live analysis to use the remote node. Both apps use the same engine. Run a single ground-server worker because in-progress events are held in memory. Completed results and replay stages persist in SQLite. Keep both services on a trusted local connection.
+## Limits
 
-Public sources include Element 84 Earth Search, Microsoft Planetary Computer, ESA WorldCover, OpenFreeMap and OpenStreetMap, Open-Meteo, and CelesTrak. Link speeds and orbit passes are simulated or predicted. Scene IDs, acquisition dates and image attribution appear with the result.
+- This is an emulation. The Jetson replays real, ground-processed Sentinel-2 data; it has no camera and no radio.
+- Sentinel-2 pixels are 10 m. Features smaller than about 0.5 ha are not reported.
+- One analysis covers at most 50 km². A state or country is sampled with a 5 km box at its centre, and the answer says so.
+- Water found on cropland is often irrigation or a flooded field, not a flood. The confidence score does not yet flag this.
+- Built-up growth is the weakest detector: bare soil can look like new construction.
+- The season baseline and the "when did it happen" chart from the original plan are not built.
+- The Jetson node does not start by itself after a reboot.
 
-## Checks
+## Data sources
 
-```powershell
-.\.venv\Scripts\python.exe -m pytest -q
-npm --prefix web run typecheck
-.\.venv\Scripts\python.exe -m pytest -q -m live
-```
-
-The Markdown plan in `docs/` describes the broader build. This implementation uses compressed AOI-specific scene caches, synthetic offline demo cases, and the same frontend for both local and remote mode. The plan's pinned real-scene demo preparation and Jetson deployment require additional setup.
+Contains modified Copernicus Sentinel data. Imagery through Element 84 Earth Search and Microsoft Planetary Computer. Land cover © ESA WorldCover project 2021. Globe imagery: Sentinel-2 cloudless 2020 by EOX IT Services GmbH. Place names and borders © OpenStreetMap contributors, OpenFreeMap. Place search by Open-Meteo and OpenStreetMap Nominatim. Weather by Open-Meteo. Orbits from CelesTrak. Deforestation reference: INPE PRODES via TerraBrasilis.

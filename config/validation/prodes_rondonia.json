@@ -1,0 +1,96 @@
+{
+  "preset": "real_rondonia",
+  "aoi_ha": 2500.0,
+  "grid": {
+    "epsg": 32720,
+    "resolution_m": 10
+  },
+  "scenes": [
+    "2019-08-02",
+    "2024-07-31"
+  ],
+  "valid_overlap_pct": 100.0,
+  "engine_changed_ha": 1123.59,
+  "engine_artefact_ha": 0.0,
+  "detected_ha": 1123.47,
+  "prodes_ha": 500.65,
+  "intersection_ha": 422.51,
+  "precision": 0.3761,
+  "recall": 0.8439,
+  "iou": 0.3516,
+  "false_positive_ha": 700.96,
+  "false_positive_on_earlier_prodes_ha": 652.54,
+  "false_positive_on_earlier_prodes_share": 0.9309,
+  "false_positive_on_later_prodes_ha": 0.0,
+  "false_positive_elsewhere_ha": 48.42,
+  "missed_prodes_ha": 78.14,
+  "prodes_earlier_ha": 1556.45,
+  "prodes_ha_by_year": {
+    "2008": 100.21,
+    "2010": 50.17,
+    "2011": 13.52,
+    "2012": 64.78,
+    "2013": 231.6,
+    "2014": 162.32,
+    "2015": 74.72,
+    "2016": 70.5,
+    "2017": 223.79,
+    "2018": 43.28,
+    "2019": 114.57,
+    "2020": 144.78,
+    "2021": 197.03,
+    "2022": 152.04,
+    "2023": 7.08,
+    "2025": 5.88
+  },
+  "prodes_image_dates": {
+    "2019": [
+      "2019-07-27"
+    ],
+    "2020": [
+      "2020-07-29"
+    ],
+    "2021": [
+      "2021-07-16"
+    ],
+    "2022": [
+      "2022-07-27"
+    ],
+    "2023": [
+      "2023-07-30"
+    ],
+    "2025": [
+      "2025-08-12"
+    ]
+  },
+  "prodes_fragments": {
+    "count": 28,
+    "smallest_ha": 0.008,
+    "under_1_ha": 1,
+    "under_6_25_ha": 3
+  },
+  "minimum_mapped_area_note": "Secondary sources say PRODES counts clearings of 6.25 ha or more and also maps polygons down to 1 ha; INPE's own methodology text was not checked. Polygons are split at scene and state borders, so the fragment sizes below are a lower bound on the mapping unit.",
+  "prodes_years": [
+    2020,
+    2024
+  ],
+  "source": {
+    "url": "https://terrabrasilis.dpi.inpe.br/geoserver/prodes-legal-amz/ows",
+    "layer": "prodes-legal-amz:yearly_deforestation",
+    "earlier_layers": [
+      "prodes-legal-amz:yearly_deforestation (2008-2019)",
+      "prodes-legal-amz:accumulated_deforestation_2007"
+    ],
+    "bbox_lonlat": [
+      -64.11185,
+      -9.57368,
+      -64.06615,
+      -9.52832
+    ],
+    "fetched": "2026-11-13",
+    "prodes_pub_date": [
+      "20261016"
+    ],
+    "attribution": "PRODES, INPE / TerraBrasilis"
+  }
+}

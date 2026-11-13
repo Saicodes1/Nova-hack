@@ -21,8 +21,11 @@ class Telemetry(BaseModel):
     state: Literal["idle", "uplink", "processing", "downlink"]
     power_w: float | None = None
     temp_c: float | None = None
+    # "tegrastats" (measured on a Jetson), "simulated" (NODE_SIM) or "none".
+    power_source: str | None = None
     mem_used_mb: int
     last_packet_bytes: int | None = None
+    verdict_writer: str | None = None
 
 
 class SatelliteNode(Protocol):

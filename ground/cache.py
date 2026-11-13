@@ -26,6 +26,9 @@ def cache_key(cmd, detector=None):
         cmd.demo_id,
         cmd.window_days,
         cmd.season_baseline,
+        cmd.exact_a,
+        cmd.exact_b,
+        cmd.report_floor_ha,
         THRESHOLDS_VERSION,
         detector,
     ]

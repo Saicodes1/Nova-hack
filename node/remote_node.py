@@ -15,7 +15,10 @@ class RemoteNode:
 
     async def uplink(self, cmd: UplinkCommand):
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
+            # A first look at a new place can spend over a minute downloading
+            # image crops between two progress events.
+            patience = httpx.Timeout(10, read=300)
+            async with httpx.AsyncClient(timeout=patience) as client:
                 async with client.stream(
                     "POST", f"{self.url}/uplink", json=cmd.model_dump(mode="json")
                 ) as response:
@@ -30,6 +33,11 @@ class RemoteNode:
                                     )
                                 )
                             yield event
+        except httpx.TimeoutException as exc:
+            raise NodeUnavailable(
+                "The satellite took too long to answer. Ask again: it has usually "
+                "stored the images by now, so a second try is quick."
+            ) from exc
         except httpx.HTTPError as exc:
             raise NodeUnavailable("Connection to the satellite node was lost.") from exc
 

@@ -35,3 +35,60 @@ cases:
     date_a: '2017-03-01'
     date_b: '2025-03-01'
     question: Where did built-up cover expand?
+
+# Real Sentinel-2 presets. These run the live pipeline; scripts/prewarm.py
+# downloads their imagery once so they replay quickly during a demo.
+presets:
+  - id: real_dubai_flood
+    title: Dubai storm, April 2024
+    name: Jebel Ali South, Dubai
+    lon: 55.112
+    lat: 24.903
+    intent: water_gain
+    date_a: '2024-04-12'
+    date_b: '2024-04-22'
+    question: Did surface water expand after the April 2024 storm?
+  - id: real_dubai_cloudy
+    title: Cloudy pass, 17 April 2024
+    name: Jebel Ali South, Dubai
+    lon: 55.112
+    lat: 24.903
+    intent: water_gain
+    date_a: '2024-04-12'
+    date_b: '2024-04-17'
+    exact: true
+    question: Was the area flooded on 17 April 2024, the day after the storm?
+  - id: real_rondonia
+    title: Rondônia forest loss, 2019–2024
+    name: Rondônia, Brazil
+    lon: -64.089
+    lat: -9.551
+    intent: veg_loss
+    date_a: '2019-08-01'
+    date_b: '2024-08-01'
+    question: Where did vegetation decline between 2019 and 2024?
+    validation: prodes_rondonia
+  - id: real_dubai_south
+    title: Dubai South growth, 2017–2025
+    name: Dubai South
+    lon: 55.17
+    lat: 24.96
+    intent: urban_growth
+    date_a: '2017-03-01'
+    date_b: '2025-03-01'
+    question: Where did built-up cover expand since 2017?
+
+# Standing questions. The node is tasked on every real overpass in the period
+# and only downlinks imagery when the change passes the reporting floor.
+watches:
+  - id: watch_dubai_flood
+    title: Watch Jebel Ali for flooding, April 2024
+    name: Jebel Ali South, Dubai
+    lon: 55.112
+    lat: 24.903
+    intent: water_gain
+    baseline_date: '2024-03-28'
+    start_date: '2024-04-01'
+    end_date: '2024-04-30'
+    floor_ha: 10
+    question: Tell me if new surface water appears here.

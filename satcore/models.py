@@ -49,6 +49,12 @@ class UplinkCommand(BaseModel):
     window_days: int = Field(15, ge=1, le=30)
     season_baseline: bool = False
     demo_id: str | None = None
+    # Take the acquisition of that exact day instead of the clearest one nearby.
+    exact_a: bool = False
+    exact_b: bool = False
+    # Standing watch: below this change the node sends a short "nothing to
+    # report" packet and keeps the imagery onboard.
+    report_floor_ha: float | None = Field(None, ge=0)
 
 
 class FromTo(BaseModel):
@@ -99,4 +105,7 @@ class AnswerPacket(BaseModel):
     timings_ms: dict[str, int]
     attribution: list[str]
     raw_equivalent_bytes: int | None = None
+    # Size of the newest scene alone: what one pass of a watch would downlink raw.
+    raw_latest_bytes: int | None = None
+    report: Literal["full", "quiet"] = "full"
     link: LinkReport | None = None
